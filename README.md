@@ -27,8 +27,14 @@ pole in the direction of the Virgo Cluster.
 - Selected objects can open a location-based sky chart with city/current-location lookup
   and a time slider with a day/twilight/night strip
 - Messier objects in the sky chart are clickable for an in-place detail readout
-- Deep links: `index.html#m31` opens with Andromeda selected
+- Deep links: `index.html#m31` opens with Andromeda selected, `#jupiter` or
+  `#titan` a solar-system body
 - Sun and Galactic Centre markers, procedural starfield with a Milky Way band
+- **The solar system**: zoom into the Sun (or click it) and the planets, Pluto,
+  and eight major moons appear at their real positions for the current date,
+  on a nested log-AU scale — all clickable like any other object, with orbits,
+  AU rings, and the ecliptic's true tilt against the galactic plane
+- Planets, the Sun, and the Moon also appear (clickable) in the sky chart
 
 ## Running it
 
@@ -75,13 +81,25 @@ City lookup for the sky chart uses the no-key
 The chart computes local altitude/azimuth in the browser from each object's
 RA/Dec and the selected time/location.
 
+`data/solar.js` holds the solar system: facts and images plus JPL's
+approximate Keplerian elements (Table 1, valid 1800–2050) for the planets and
+Pluto, evaluated in the browser for the current date — geocentric positions
+agree with JPL Horizons to a few arcminutes. Earth's Moon uses a compact
+perturbation series (~0.3°). The other moons run circular orbits whose plane
+and phase are baked from a JPL Horizons state vector at J2000
+(`tools/build_solar.py` regenerates this; phases verified within ~1–3°).
+Moon separations from their planets are exaggerated for visibility — the
+orbital phase direction is real, and the panels say so.
+
 ## Files
 
-| Path                 | Purpose                                      |
-| -------------------- | -------------------------------------------- |
-| `index.html`         | The whole app: scene, UI, styles, logic      |
-| `data/messier.js`    | Generated catalogue (`window.MESSIER = […]`) |
-| `tools/build_data.py`| Regenerates `data/messier.js` from Wikipedia |
+| Path                  | Purpose                                          |
+| --------------------- | ------------------------------------------------ |
+| `index.html`          | The whole app: scene, UI, styles, logic          |
+| `data/messier.js`     | Generated catalogue (`window.MESSIER = […]`)     |
+| `data/solar.js`       | Generated solar system (`window.SOLAR = {…}`)    |
+| `tools/build_data.py` | Regenerates `data/messier.js` from Wikipedia     |
+| `tools/build_solar.py`| Regenerates `data/solar.js` (Wikipedia + JPL)    |
 
 ## Ideas for later
 

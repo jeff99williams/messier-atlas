@@ -298,7 +298,8 @@
 <div id="header" class="overlay">
   <h1>Messier <span>Atlas</span></h1>
   <p>All 110 Messier objects mapped in 3D around the Sun.
-     Distances are log-compressed: each ring is 10&times; farther than the last.</p>
+     Distances are log-compressed: each ring is 10&times; farther than the last.
+     Zoom into the Sun to visit the solar system.</p>
   <div id="searchwrap">
     <input id="search" type="text" placeholder="Search — try “M31” or “Crab”…" autocomplete="off" spellcheck="false">
     <div id="suggestions"></div>
@@ -321,14 +322,7 @@
     <span class="badge" id="p-badge"></span>
     <h2 id="p-name"></h2>
     <div class="designation" id="p-desig"></div>
-    <dl>
-      <dt>Type</dt><dd id="p-type"></dd>
-      <dt>Distance</dt><dd id="p-dist"></dd>
-      <dt>Constellation</dt><dd id="p-const"></dd>
-      <dt>Magnitude</dt><dd id="p-mag"></dd>
-      <dt>Apparent size</dt><dd id="p-size"></dd>
-      <dt>Position</dt><dd id="p-radec"></dd>
-    </dl>
+    <dl id="p-dl"></dl>
     <div class="lighttime" id="p-light"></div>
     <div class="now-control">
       <label id="now-toggle-label"><input id="now-toggle" type="checkbox"> <span id="now-toggle-text">Show estimated now position</span></label>
@@ -369,6 +363,7 @@
 </div>
 
 <script src="data/messier.js"></script>
+<script src="data/solar.js"></script>
 
 <script type="importmap">
 {
@@ -399,6 +394,17 @@ const SKY_SCAN_STEP_MIN = 10;
 const SKY_SLIDER_SPAN_MIN = 24 * 60;
 const SKY_MIN_DARK_SUN_ALT = -12;
 
+const AU_KM = 149597870.7;
+const LIGHT_S_PER_AU = 499.005;
+const EARTH_RADIUS_KM = 6378.14;  // Schlyter's lunar elements are in equatorial Earth radii
+const SOLAR_SCALE = 10;           // scene units per decade of AU in the inner zone
+const SOLAR_BASE_AU = 0.1;        // heliocentric distance that maps to scene radius 0
+const SOLAR_FADE_NEAR = 70;       // camera radius where solar overlays are fully visible
+const SOLAR_FADE_FAR = 230;       // ...and fully faded out
+const MOON_LABEL_NEAR = 7;        // camera-to-target distance where moon labels appear
+const MOON_LABEL_FAR = 18;
+const OBLIQUITY_DEG = 23.43928;
+
 const CATS = {
   galaxy:    { label: 'Galaxies',          badge: 'Galaxy',           color: '#b18cff' },
   globular:  { label: 'Globular clusters', badge: 'Globular cluster', color: '#ffc04d' },
@@ -406,6 +412,13 @@ const CATS = {
   nebula:    { label: 'Nebulae',           badge: 'Nebula',           color: '#ff7eb6' },
   planetary: { label: 'Planetary nebulae', badge: 'Planetary nebula', color: '#5fe3c0' },
   other:     { label: 'Other',             badge: 'Other',            color: '#e8e8e8' },
+};
+
+const SOLAR_KINDS = {
+  star:   { badge: 'Star' },
+  planet: { badge: 'Planet' },
+  dwarf:  { badge: 'Dwarf planet' },
+  moon:   { badge: 'Moon' },
 };
 
 const CONSTELLATION_LINES_URL = 'https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/constellations.lines.json';
@@ -549,6 +562,123 @@ function sunRaDec(date) {
   };
 }
 
+/* ---------- solar system positions ---------- */
+
+const sind = deg => Math.sin(degToRad(deg));
+const cosd = deg => Math.cos(degToRad(deg));
+const COS_OBL = cosd(OBLIQUITY_DEG), SIN_OBL = sind(OBLIQUITY_DEG);
+
+const solarRadiusFor = au =>
+  SOLAR_SCALE * Math.log10(Math.max(au, SOLAR_BASE_AU * 1.2) / SOLAR_BASE_AU);
+
+const eclToEquatorial = v => [
+  v[0],
+  v[1] * COS_OBL - v[2] * SIN_OBL,
+  v[1] * SIN_OBL + v[2] * COS_OBL,
+];
+
+function vecRaDec(v) {
+  const r = Math.hypot(v[0], v[1], v[2]);
+  return {
+    ra: normDeg(radToDeg(Math.atan2(v[1], v[0]))),
+    dec: radToDeg(Math.asin(v[2] / r)),
+    r,
+  };
+}
+
+function eclVecToScene(v, sceneRadius) {
+  const { ra, dec } = vecRaDec(eclToEquatorial(v));
+  return radecToScene(ra, dec, sceneRadius);
+}
+
+function solveKepler(meanAnomalyDeg, e) {
+  const M = degToRad(normSignedDeg(meanAnomalyDeg));
+  let E = M + e * Math.sin(M);
+  for (let i = 0; i < 10; i++) {
+    const d = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+    E -= d;
+    if (Math.abs(d) < 1e-9) break;
+  }
+  return E;
+}
+
+// JPL approximate Keplerian elements (data/solar.js) at a given Julian date.
+function planetOrbitFrame(k, jd) {
+  const T = (jd - 2451545.0) / 36525;
+  const a = k[0] + k[1] * T, e = k[2] + k[3] * T;
+  const I = degToRad(k[4] + k[5] * T);
+  const L = k[6] + k[7] * T, peri = k[8] + k[9] * T, node = k[10] + k[11] * T;
+  const w = degToRad(peri - node), O = degToRad(node);
+  const cw = Math.cos(w), sw = Math.sin(w), cO = Math.cos(O), sO = Math.sin(O);
+  const ci = Math.cos(I), si = Math.sin(I);
+  return {
+    a, e, meanAnomaly: L - peri,
+    toEcl: (xp, yp) => [
+      (cw * cO - sw * sO * ci) * xp + (-sw * cO - cw * sO * ci) * yp,
+      (cw * sO + sw * cO * ci) * xp + (-sw * sO + cw * cO * ci) * yp,
+      sw * si * xp + cw * si * yp,
+    ],
+  };
+}
+
+// Heliocentric ecliptic J2000 position in AU.
+function planetHelioEcl(k, jd) {
+  const f = planetOrbitFrame(k, jd);
+  const E = solveKepler(f.meanAnomaly, f.e);
+  return f.toEcl(f.a * (Math.cos(E) - f.e), f.a * Math.sqrt(1 - f.e * f.e) * Math.sin(E));
+}
+
+// Geocentric ecliptic position of the Moon in AU — Schlyter's elements with
+// the main perturbation terms, good to about a third of a degree.
+function moonGeoEcl(jd) {
+  const d = jd - 2451543.5;
+  const Ndeg = normDeg(125.1228 - 0.0529538083 * d);
+  const wdeg = normDeg(318.0634 + 0.1643573223 * d);
+  const Mm = normDeg(115.3654 + 13.0649929509 * d);
+  const e = 0.054900;
+  const E = solveKepler(Mm, e);
+  const xv = 60.2666 * (Math.cos(E) - e);
+  const yv = 60.2666 * Math.sqrt(1 - e * e) * Math.sin(E);
+  const v = radToDeg(Math.atan2(yv, xv));
+  let r = Math.hypot(xv, yv);                  // Earth radii
+
+  const N = degToRad(Ndeg), inc = degToRad(5.1454), u = degToRad(normDeg(v + wdeg));
+  const x = r * (Math.cos(N) * Math.cos(u) - Math.sin(N) * Math.sin(u) * Math.cos(inc));
+  const y = r * (Math.sin(N) * Math.cos(u) + Math.cos(N) * Math.sin(u) * Math.cos(inc));
+  const z = r * Math.sin(u) * Math.sin(inc);
+  let lon = radToDeg(Math.atan2(y, x));
+  let lat = radToDeg(Math.atan2(z, Math.hypot(x, y)));
+
+  const Ms = normDeg(356.0470 + 0.9856002585 * d);     // Sun mean anomaly
+  const Ls = normDeg(Ms + 282.9404 + 4.70935e-5 * d);  // Sun mean longitude
+  const Lm = normDeg(Mm + wdeg + Ndeg);                // Moon mean longitude
+  const D = Lm - Ls;                                   // mean elongation
+  const F = Lm - Ndeg;                                 // argument of latitude
+  lon += -1.274 * sind(Mm - 2 * D) + 0.658 * sind(2 * D) - 0.186 * sind(Ms)
+       - 0.059 * sind(2 * Mm - 2 * D) - 0.057 * sind(Mm - 2 * D + Ms)
+       + 0.053 * sind(Mm + 2 * D) + 0.046 * sind(2 * D - Ms)
+       + 0.041 * sind(Mm - Ms) - 0.035 * sind(D) - 0.031 * sind(Mm + Ms);
+  lat += -0.173 * sind(F - 2 * D) - 0.055 * sind(Mm - F - 2 * D)
+       - 0.046 * sind(Mm + F - 2 * D) + 0.033 * sind(F + 2 * D) + 0.017 * sind(2 * Mm + F);
+  r += -0.58 * cosd(Mm - 2 * D) - 0.46 * cosd(2 * D);
+
+  const rAU = r * EARTH_RADIUS_KM / AU_KM;
+  return [rAU * cosd(lat) * cosd(lon), rAU * cosd(lat) * sind(lon), rAU * sind(lat)];
+}
+
+// Circular-orbit direction of a moon about its planet (unit vector, ecliptic
+// J2000). The p/q basis is baked from a JPL Horizons state vector at J2000,
+// so plane, phase, and direction of motion are real.
+function moonDirEcl(orbit, jd) {
+  const th = degToRad(orbit.n * (jd - orbit.epoch));
+  const c = Math.cos(th), s = Math.sin(th);
+  return [
+    orbit.p[0] * c + orbit.q[0] * s,
+    orbit.p[1] * c + orbit.q[1] * s,
+    orbit.p[2] * c + orbit.q[2] * s,
+  ];
+}
+
 function radecToHorizontal(raDeg, decDeg, date, location) {
   const lat = degToRad(location.lat);
   const dec = degToRad(decDeg);
@@ -563,7 +693,8 @@ function radecToHorizontal(raDeg, decDeg, date, location) {
 }
 
 function objectHorizontal(data, date, location) {
-  return radecToHorizontal(data.ra, data.dec, date, location);
+  const rd = data.radecAt ? data.radecAt(date) : data;
+  return radecToHorizontal(rd.ra, rd.dec, date, location);
 }
 
 function sunAltitude(date, location) {
@@ -615,7 +746,7 @@ function makeRingTexture() {
   return new THREE.CanvasTexture(c);
 }
 
-function makeTextSprite(text, { size = 26, color = '#9fb4d8', weight = 500, opacity = 1 } = {}) {
+function makeTextSprite(text, { size = 26, color = '#9fb4d8', weight = 500, opacity = 1, unit = 0.16 } = {}) {
   const c = document.createElement('canvas');
   const ctx = c.getContext('2d');
   const font = `${weight} ${size}px "Segoe UI", system-ui, sans-serif`;
@@ -633,8 +764,7 @@ function makeTextSprite(text, { size = 26, color = '#9fb4d8', weight = 500, opac
   ctx2.fillText(text, 8, h / 2);
   const tex = new THREE.CanvasTexture(c);
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity, depthTest: false });
-  const sp = new THREE.Sprite(mat);
-  const unit = 0.16;                            // world units per px of label
+  const sp = new THREE.Sprite(mat);            // unit = world units per px of label
   sp.scale.set(w * unit, h * unit, 1);
   sp.renderOrder = 90;
   return sp;
@@ -875,7 +1005,8 @@ function skyPoint(horizontal, cx, cy, radius, { clamp = false } = {}) {
   };
 }
 
-function messierDisplayName(data) {
+function displayName(data) {
+  if (data.kind) return data.name;
   return `M${data.m}${data.name ? ` · ${data.name}` : ''}`;
 }
 
@@ -904,7 +1035,7 @@ camera.position.copy(HOME_POS);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
-controls.minDistance = 25;
+controls.minDistance = 1.3;
 controls.maxDistance = 1600;
 controls.zoomToCursor = true;
 controls.autoRotate = true;
@@ -1022,10 +1153,169 @@ const objects = window.MESSIER.map(d => {
   const s = THREE.MathUtils.clamp(7 + (9.5 - d.mag) * 1.1, 6, 17);
   sprite.scale.set(s, s, 1);
   sprite.position.copy(pos);
-  sprite.userData = d;
   objectsGroup.add(sprite);
-  return { data: d, sprite, pos, scale: s };
+  const obj = { data: d, sprite, pos, scale: s };
+  sprite.userData.obj = obj;
+  return obj;
 });
+
+/* ---------- solar system ---------- */
+
+const solarRoot = new THREE.Group();
+scene.add(solarRoot);
+const solarOverlayGroup = new THREE.Group();   // orbits, AU rings, labels — fade with zoom
+const planetsGroup = new THREE.Group();
+const moonsGroup = new THREE.Group();
+solarRoot.add(solarOverlayGroup, planetsGroup, moonsGroup);
+
+const SOLAR_JD = julianDate(new Date());
+const solarObjects = [];
+const solarBySlug = {};
+const solarFadeMats = [];      // overlay materials, faded by camera radius
+const moonLabelFadeMats = [];  // moon name labels, shown only when very close
+
+const EARTH_KEPLER = window.SOLAR.planets.find(p => p.slug === 'earth').kepler;
+
+// Geocentric ecliptic J2000 vector (AU) of any solar-system body.
+function geoEclVecOf(d, jd) {
+  const e = planetHelioEcl(EARTH_KEPLER, jd);
+  if (d.kind === 'star') return [-e[0], -e[1], -e[2]];
+  if (d.kind === 'moon') {
+    if (!d.orbit) return moonGeoEcl(jd);       // Earth's Moon
+    const parent = solarBySlug[d.parent].data;
+    const ph = planetHelioEcl(parent.kepler, jd);
+    const dir = moonDirEcl(d.orbit, jd);
+    const aAU = d.a_km / AU_KM;
+    return [ph[0] + dir[0] * aAU - e[0], ph[1] + dir[1] * aAU - e[1], ph[2] + dir[2] * aAU - e[2]];
+  }
+  const p = planetHelioEcl(d.kepler, jd);
+  return [p[0] - e[0], p[1] - e[1], p[2] - e[2]];
+}
+
+function addSolarOverlayLine(points, color, opacity, { loop = false } = {}) {
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  solarFadeMats.push({ mat, base: opacity });
+  const line = loop ? new THREE.LineLoop(geo, mat) : new THREE.Line(geo, mat);
+  solarOverlayGroup.add(line);
+  return line;
+}
+
+const sunObj = {
+  data: window.SOLAR.sun,
+  sprite: sunSprite, pos: new THREE.Vector3(0, 0, 0), scale: 2.4, flyDist: 60,
+};
+sunSprite.userData.obj = sunObj;
+solarObjects.push(sunObj);
+solarBySlug.sun = sunObj;
+
+for (const d of window.SOLAR.planets) {
+  const helio = planetHelioEcl(d.kepler, SOLAR_JD);
+  const { ra, dec, r } = vecRaDec(eclToEquatorial(helio));
+  const pos = radecToScene(ra, dec, solarRadiusFor(r));
+
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(d.color), transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  sprite.scale.set(d.scale, d.scale, 1);
+  sprite.position.copy(pos);
+  planetsGroup.add(sprite);
+
+  const label = makeTextSprite(d.name, { size: 22, color: '#dbe6f8', weight: 600, opacity: 0.92, unit: 0.015 });
+  label.position.copy(pos).add(new THREE.Vector3(0, d.scale * 0.7 + 0.3, 0));
+  solarFadeMats.push({ mat: label.material, base: 0.92 });
+  solarOverlayGroup.add(label);
+
+  // the actual orbit, mapped through the same log-AU radial scale
+  const f = planetOrbitFrame(d.kepler, SOLAR_JD);
+  const pts = [];
+  for (let j = 0; j <= 256; j++) {
+    const E = (j / 256) * Math.PI * 2;
+    const v = f.toEcl(f.a * (Math.cos(E) - f.e), f.a * Math.sqrt(1 - f.e * f.e) * Math.sin(E));
+    const rd = vecRaDec(eclToEquatorial(v));
+    pts.push(radecToScene(rd.ra, rd.dec, solarRadiusFor(rd.r)));
+  }
+  addSolarOverlayLine(pts, new THREE.Color(d.color), 0.35);
+
+  const obj = { data: d, sprite, pos, scale: d.scale, flyDist: d.flyDist, helioAU: r };
+  sprite.userData.obj = obj;
+  solarObjects.push(obj);
+  solarBySlug[d.slug] = obj;
+}
+
+for (const d of window.SOLAR.moons) {
+  const parent = solarBySlug[d.parent];
+  const dirEcl = d.orbit
+    ? moonDirEcl(d.orbit, SOLAR_JD)
+    : (() => { const g = moonGeoEcl(SOLAR_JD); const n = Math.hypot(...g); return g.map(c => c / n); })();
+  const pos = parent.pos.clone().add(eclVecToScene(dirEcl, 1).multiplyScalar(d.offset));
+
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(d.color), transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  sprite.scale.set(d.scale, d.scale, 1);
+  sprite.position.copy(pos);
+  moonsGroup.add(sprite);
+
+  // small orbit circle around the parent (exaggerated radius, real plane)
+  const circle = [];
+  for (let j = 0; j <= 96; j++) {
+    const th = (j / 96) * Math.PI * 2;
+    const dir = d.orbit
+      ? [0, 1, 2].map(i => d.orbit.p[i] * Math.cos(th) + d.orbit.q[i] * Math.sin(th))
+      : [Math.cos(th), Math.sin(th), 0];
+    circle.push(parent.pos.clone().add(eclVecToScene(dir, 1).multiplyScalar(d.offset)));
+  }
+  const circleGeo = new THREE.BufferGeometry().setFromPoints(circle);
+  const circleMat = new THREE.LineBasicMaterial({ color: 0x6b7898, transparent: true, opacity: 0.3 });
+  solarFadeMats.push({ mat: circleMat, base: 0.3 });
+  moonsGroup.add(new THREE.LineLoop(circleGeo, circleMat));
+
+  const label = makeTextSprite(d.name, { size: 18, color: '#c4d0e8', weight: 600, opacity: 0.9, unit: 0.0085 });
+  label.position.copy(pos).add(new THREE.Vector3(0, d.scale * 0.7 + 0.12, 0));
+  moonLabelFadeMats.push({ mat: label.material, base: 0.9 });
+  moonsGroup.add(label);
+
+  const obj = { data: d, sprite, pos, scale: d.scale, flyDist: 2.2 };
+  sprite.userData.obj = obj;
+  solarObjects.push(obj);
+  solarBySlug[d.slug] = obj;
+}
+
+// AU scale rings in the ecliptic plane, mirroring the light-year rings
+for (const [au, text] of [[1, '1 AU'], [10, '10 AU']]) {
+  const r = solarRadiusFor(au);
+  const pts = [];
+  for (let j = 0; j <= 180; j++) {
+    const a = (j / 180) * Math.PI * 2;
+    pts.push(eclVecToScene([Math.cos(a), Math.sin(a), 0], r));
+  }
+  addSolarOverlayLine(pts, 0x4a5a85, 0.5);
+  const tag = makeTextSprite(text, { size: 22, color: '#8ea3cc', unit: 0.02 });
+  tag.position.copy(eclVecToScene([0, -1, 0], r)).add(new THREE.Vector3(0, 0.35, 0));
+  solarFadeMats.push({ mat: tag.material, base: 1 });
+  solarOverlayGroup.add(tag);
+}
+
+// geocentric RA/Dec (and Earth distance) as a function of time, for the sky
+// planner, sky chart, and info panels — Earth itself has no geocentric place
+for (const o of solarObjects) {
+  if (o.data.slug === 'earth') continue;
+  o.data.radecAt = date => {
+    const g = vecRaDec(eclToEquatorial(geoEclVecOf(o.data, julianDate(date))));
+    return { ra: g.ra, dec: g.dec, rAU: g.r };
+  };
+  const now = o.data.radecAt(new Date());
+  o.data.ra = now.ra;
+  o.data.dec = now.dec;
+  o.geoAU = now.rAU;
+}
+
+const solarChartBodies = solarObjects.filter(
+  o => o.data.radecAt && (o.data.kind !== 'moon' || o.data.slug === 'moon')
+);
 
 /* ---------- selection ring ---------- */
 
@@ -1241,7 +1531,7 @@ function setNowControlForSelection(obj) {
   nowToggleLabel.classList.add('unavailable');
   nowToggleText.textContent = 'Now position not available';
 
-  if (!obj) {
+  if (!obj || obj.data.kind) {
     nowToggleLabel.classList.remove('unavailable');
     nowToggleText.textContent = 'Show estimated now position';
     return null;
@@ -1280,7 +1570,8 @@ function setSkyLocationStatus(text, { error = false } = {}) {
 }
 
 function updateSkyOpenButton() {
-  skyOpenBtn.disabled = !(selected && observingLocation);
+  const noSkyPlace = selected && selected.data.kind && !selected.data.radecAt;  // Earth
+  skyOpenBtn.disabled = !(selected && observingLocation && !noSkyPlace);
 }
 
 function setObservingLocation(location) {
@@ -1413,7 +1704,7 @@ function renderNightTrack(date) {
   ctx.fillRect(0, height - 1, width, 1);
 }
 
-function showSkyObjectDetails(obj, horizontal = null, date = currentSkyDate()) {
+function showSkyObjectDetails(obj, horizontal = null, date = null) {
   if (!obj) {
     skyDetailObject = null;
     skyObjectCard.classList.remove('show');
@@ -1421,10 +1712,32 @@ function showSkyObjectDetails(obj, horizontal = null, date = currentSkyDate()) {
     return;
   }
 
+  if (!date) date = currentSkyDate();
   const d = obj.data;
-  const meta = CATS[d.cat];
   const h = horizontal || objectHorizontal(d, date, skyViewState.location);
   skyDetailObject = obj;
+
+  if (d.kind) {
+    const rd = d.radecAt(date);
+    skyObjectCard.innerHTML = `
+      <img src="${d.img}" alt="${d.name}" referrerpolicy="no-referrer">
+      <span class="badge" style="background:${d.color}">${SOLAR_KINDS[d.kind].badge.toUpperCase()}</span>
+      <h3>${d.name}</h3>
+      <div class="sub">${d.kind === 'moon' ? 'Moon of ' + solarBySlug[d.parent].data.name : 'Solar system'}</div>
+      <dl>
+        <dt>Altitude</dt><dd>${h.alt.toFixed(0)}°</dd>
+        <dt>Azimuth</dt><dd>${h.az.toFixed(0)}° ${azLabel(h.az)}</dd>
+        <dt>From Earth</dt><dd>${fmtFromEarth(d, rd.rAU)}</dd>
+        <dt>Position</dt><dd>${fmtRaDec(rd.ra, rd.dec)}</dd>
+      </dl>
+      <div class="note">Light from ${d.name} reaches Earth in ${fmtLightSpan(rd.rAU * LIGHT_S_PER_AU)}.</div>`;
+    const solarImg = skyObjectCard.querySelector('img');
+    solarImg.addEventListener('error', () => solarImg.classList.add('hide'));
+    skyObjectCard.classList.add('show');
+    return;
+  }
+
+  const meta = CATS[d.cat];
   skyObjectCard.innerHTML = `
     <img src="${d.img}" alt="${d.name || `M${d.m}`}" referrerpolicy="no-referrer">
     <span class="badge" style="background:${meta.color}">${meta.badge.toUpperCase()}</span>
@@ -1536,6 +1849,21 @@ function renderSkyChart() {
   }
   ctx.globalAlpha = 1;
 
+  const solarVisible = [];
+  for (const obj of solarChartBodies) {
+    if (obj === selectedObj) continue;
+    const horizontal = objectHorizontal(obj.data, date, location);
+    if (horizontal.alt <= 0) continue;
+    const point = skyPoint(horizontal, cx, cy, radius);
+    if (!point) continue;
+    solarVisible.push({ obj, horizontal, point });
+    const size = obj.data.kind === 'star' ? 7 : obj.data.slug === 'moon' ? 5.5 : 3.6;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = obj.data.color;
+    ctx.fill();
+  }
+
   const selectedPoint = skyPoint(selectedHorizontal, cx, cy, radius, { clamp: true });
   const selectedVisible = selectedHorizontal.alt >= 0;
   if (selectedPoint) {
@@ -1559,6 +1887,15 @@ function renderSkyChart() {
       hitRadius: item.obj === selectedObj ? 14 : 11,
     });
   }
+  for (const item of solarVisible) {
+    skyHitTargets.push({
+      obj: item.obj,
+      horizontal: item.horizontal,
+      x: item.point.x,
+      y: item.point.y,
+      hitRadius: 12,
+    });
+  }
 
   const nearbyLabels = visible
     .filter(item => item.obj !== selectedObj)
@@ -1575,10 +1912,16 @@ function renderSkyChart() {
     ctx.fillText(`M${item.obj.data.m}`, item.point.x + 6, item.point.y - 6);
   }
 
+  ctx.font = '600 11px "Segoe UI", system-ui, sans-serif';
+  for (const item of solarVisible) {
+    ctx.fillStyle = 'rgba(255, 238, 200, 0.88)';
+    ctx.fillText(item.obj.data.name, item.point.x + 7, item.point.y - 7);
+  }
+
   if (selectedPoint) {
     ctx.font = '650 13px "Segoe UI", system-ui, sans-serif';
     ctx.fillStyle = selectedVisible ? '#ffedbd' : '#ffb5a1';
-    ctx.fillText(`M${selectedObj.data.m}${selectedObj.data.name ? ` · ${selectedObj.data.name}` : ''}`, selectedPoint.x + 12, selectedPoint.y + 2);
+    ctx.fillText(displayName(selectedObj.data), selectedPoint.x + 12, selectedPoint.y + 2);
   }
   ctx.restore();
 
@@ -1606,7 +1949,10 @@ function renderSkyChart() {
   const visibility = selectedVisible
     ? `alt ${selectedHorizontal.alt.toFixed(0)}°, az ${selectedHorizontal.az.toFixed(0)}° ${azLabel(selectedHorizontal.az)}`
     : `below horizon, az ${selectedHorizontal.az.toFixed(0)}° ${azLabel(selectedHorizontal.az)}`;
-  skyReadout.textContent = `${visibility}. ${visible.length} Messier objects above the horizon. ${darkLabel}.`;
+  const solarCount = solarVisible.length
+    ? ` ${solarVisible.length} solar system bod${solarVisible.length === 1 ? 'y' : 'ies'} up.`
+    : '';
+  skyReadout.textContent = `${visibility}. ${visible.length} Messier objects above the horizon.${solarCount} ${darkLabel}.`;
   renderNightTrack(date);
   if (skyDetailObject) showSkyObjectDetails(skyDetailObject, null, date);
 }
@@ -1622,7 +1968,7 @@ function openSkyView() {
   skyTime.max = SKY_SLIDER_SPAN_MIN;
   skyTime.step = SKY_SCAN_STEP_MIN;
   skyTime.value = SKY_SLIDER_SPAN_MIN / 2;
-  skyTitle.textContent = messierDisplayName(selected.data);
+  skyTitle.textContent = displayName(selected.data);
   skySubtitle.textContent = observingLocation.label;
   showSkyObjectDetails(null);
   skyModal.classList.add('open');
@@ -1679,6 +2025,33 @@ const catVisible = Object.fromEntries(Object.keys(CATS).map(k => [k, true]));
     legend.appendChild(label);
   }
 
+  const solarHeader = document.createElement('h2');
+  solarHeader.className = 'section';
+  solarHeader.textContent = 'Solar system';
+  legend.appendChild(solarHeader);
+
+  const planetsLabel = document.createElement('label');
+  planetsLabel.innerHTML = `<input type="checkbox" checked>
+    <span class="dot" style="background:#e8b582"></span>
+    Planets<span class="count">${window.SOLAR.planets.length}</span>`;
+  planetsLabel.querySelector('input').addEventListener('change', e => {
+    solarRoot.visible = e.target.checked;
+    planetsLabel.classList.toggle('off', !e.target.checked);
+    if (!e.target.checked && selected?.data.kind && selected.data.kind !== 'star') deselect();
+  });
+  legend.appendChild(planetsLabel);
+
+  const moonsLabel = document.createElement('label');
+  moonsLabel.innerHTML = `<input type="checkbox" checked>
+    <span class="dot" style="background:#d9dde6"></span>
+    Moons<span class="count">${window.SOLAR.moons.length}</span>`;
+  moonsLabel.querySelector('input').addEventListener('change', e => {
+    moonsGroup.visible = e.target.checked;
+    moonsLabel.classList.toggle('off', !e.target.checked);
+    if (!e.target.checked && selected?.data.kind === 'moon') deselect();
+  });
+  legend.appendChild(moonsLabel);
+
   const skyHeader = document.createElement('h2');
   skyHeader.className = 'section';
   skyHeader.textContent = 'Sky layers';
@@ -1732,8 +2105,8 @@ function select(obj, { fly = true } = {}) {
   panel.classList.add('open');
   setNowControlForSelection(obj);
   updateSkyOpenButton();
-  history.replaceState(null, '', '#m' + obj.data.m);
-  if (fly) flyTo(obj.pos, Math.max(110, obj.scale * 8));
+  history.replaceState(null, '', '#' + (obj.data.slug || 'm' + obj.data.m));
+  if (fly) flyTo(obj.pos, obj.flyDist ?? Math.max(110, obj.scale * 8));
 }
 
 function deselect() {
@@ -1762,23 +2135,82 @@ const panelImg = document.getElementById('p-img');
 panelImg.addEventListener('error', () => { panelImg.style.visibility = 'hidden'; });
 panelImg.addEventListener('load', () => { panelImg.style.visibility = 'visible'; });
 
+const panelDl = $('p-dl');
+const nowControlBox = document.querySelector('#panel .now-control');
+
+function setPanelRows(rows) {
+  panelDl.innerHTML = rows.map(([t, v]) => `<dt>${t}</dt><dd>${v}</dd>`).join('');
+}
+
+function fmtFromEarth(d, rAU) {
+  if (d.slug === 'moon') return `${Math.round(rAU * AU_KM).toLocaleString()} km`;
+  return `${rAU.toFixed(2)} AU`;
+}
+
+function fmtLightSpan(seconds) {
+  if (seconds < 2) return `${seconds.toFixed(1)} seconds`;
+  if (seconds < 90) return `${Math.round(seconds)} seconds`;
+  if (seconds < 5400) {
+    const m = Math.floor(seconds / 60), s = Math.round(seconds % 60);
+    return s ? `${m} min ${s} s` : `${m} minutes`;
+  }
+  return `${(seconds / 3600).toFixed(1)} hours`;
+}
+
+function solarLightNote(d, rd, obj) {
+  if (d.kind === 'star') return `Sunlight takes ${fmtLightSpan(rd.rAU * LIGHT_S_PER_AU)} to reach Earth.`;
+  if (d.slug === 'earth') return 'Sunlight takes about 8 min 19 s to reach Earth.';
+  if (d.kind === 'moon') {
+    return `Light from ${d.name} reaches Earth in ${fmtLightSpan(rd.rAU * LIGHT_S_PER_AU)}. ` +
+      'Its separation from the planet is exaggerated here for visibility — ' +
+      'the direction shown is its real orbital phase today.';
+  }
+  return `Sunlight takes ${fmtLightSpan(obj.helioAU * LIGHT_S_PER_AU)} to reach ${d.name}, ` +
+    `and its reflected light takes ${fmtLightSpan(rd.rAU * LIGHT_S_PER_AU)} to reach Earth right now.`;
+}
+
 function fillPanel(d) {
-  const meta = CATS[d.cat];
+  const meta = d.kind ? SOLAR_KINDS[d.kind] : CATS[d.cat];
   panelImg.style.visibility = 'hidden';
   panelImg.src = d.img;
   panelImg.alt = d.name || `M${d.m}`;
   $('p-badge').textContent = meta.badge.toUpperCase();
-  $('p-badge').style.background = meta.color;
-  $('p-name').textContent = d.name || `Messier ${d.m}`;
-  $('p-desig').textContent = `M${d.m}` + (d.ngc && d.ngc !== '–' ? ` · ${d.ngc}` : '');
-  $('p-type').textContent = d.type;
-  $('p-dist').textContent = fmtDistance(d.dist_kly);
-  $('p-const').textContent = d.const;
-  $('p-mag').textContent = d.mag.toFixed(1);
-  $('p-size').textContent = d.size || '—';
-  $('p-radec').textContent = fmtRaDec(d.ra, d.dec);
-  $('p-light').textContent = fmtLightTime(d.dist_kly);
+  $('p-badge').style.background = d.kind ? d.color : meta.color;
   $('p-wiki').href = d.wiki;
+  nowControlBox.style.display = d.kind ? 'none' : '';
+
+  if (d.kind) {
+    const obj = solarBySlug[d.slug];
+    const rd = d.radecAt ? d.radecAt(new Date()) : null;
+    $('p-name').textContent = d.name;
+    $('p-desig').textContent = d.kind === 'moon'
+      ? `Moon of ${solarBySlug[d.parent].data.name}` : 'Solar system';
+    const rows = [['Type', meta.badge]];
+    if (d.kind === 'moon') {
+      rows.push([`From ${solarBySlug[d.parent].data.name}`, `${d.a_km.toLocaleString()} km`]);
+      rows.push(['Orbital period', `${d.period_days.toFixed(2)} days`]);
+    } else if (d.kind !== 'star') {
+      rows.push(['From Sun', `${obj.helioAU.toFixed(2)} AU`]);
+      rows.push(['Orbital period', d.period]);
+    }
+    if (rd) rows.push(['From Earth', fmtFromEarth(d, rd.rAU)]);
+    rows.push(['Diameter', `${d.diameter_km.toLocaleString()} km`]);
+    if (rd) rows.push(['Position now', fmtRaDec(rd.ra, rd.dec)]);
+    setPanelRows(rows);
+    $('p-light').textContent = solarLightNote(d, rd, obj);
+  } else {
+    $('p-name').textContent = d.name || `Messier ${d.m}`;
+    $('p-desig').textContent = `M${d.m}` + (d.ngc && d.ngc !== '–' ? ` · ${d.ngc}` : '');
+    setPanelRows([
+      ['Type', d.type],
+      ['Distance', fmtDistance(d.dist_kly)],
+      ['Constellation', d.const],
+      ['Magnitude', d.mag.toFixed(1)],
+      ['Apparent size', d.size || '—'],
+      ['Position', fmtRaDec(d.ra, d.dec)],
+    ]);
+    $('p-light').textContent = fmtLightTime(d.dist_kly);
+  }
 }
 
 /* ---------- search ---------- */
@@ -1786,12 +2218,18 @@ function fillPanel(d) {
 function matches(q) {
   q = q.trim().toLowerCase();
   if (!q) return [];
-  return objects.filter(o => {
+  const solar = solarObjects.filter(o => {
+    const d = o.data;
+    return d.name.toLowerCase().startsWith(q) ||
+      SOLAR_KINDS[d.kind].badge.toLowerCase().includes(q);
+  });
+  const messier = objects.filter(o => {
     const d = o.data;
     return (`m${d.m}` === q) || (`m${d.m}`).startsWith(q) || String(d.m) === q ||
       d.name.toLowerCase().includes(q) || d.type.toLowerCase().includes(q) ||
       d.const.toLowerCase().includes(q) || d.ngc.toLowerCase().includes(q);
-  }).slice(0, 8);
+  });
+  return [...solar, ...messier].slice(0, 8);
 }
 
 function renderSuggestions(list) {
@@ -1800,8 +2238,15 @@ function renderSuggestions(list) {
   for (const o of list) {
     const d = o.data;
     const div = document.createElement('div');
-    div.innerHTML = `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}
-      <div class="sub">${d.type} · ${d.const} · ${fmtDistance(d.dist_kly)}</div>`;
+    if (d.kind) {
+      const sub = d.kind === 'moon' ? `Moon of ${solarBySlug[d.parent].data.name}` :
+        d.kind === 'star' ? 'Centre of the solar system' :
+        `${SOLAR_KINDS[d.kind].badge} · ${o.helioAU.toFixed(1)} AU from Sun`;
+      div.innerHTML = `<b>${d.name}</b><div class="sub">${sub}</div>`;
+    } else {
+      div.innerHTML = `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}
+        <div class="sub">${d.type} · ${d.const} · ${fmtDistance(d.dist_kly)}</div>`;
+    }
     div.addEventListener('click', () => {
       select(o);
       sugBox.style.display = 'none';
@@ -1834,12 +2279,24 @@ const pointer = new THREE.Vector2();
 let hovered = null;
 let downAt = null;
 
+function visibleThrough(node) {
+  for (let n = node; n; n = n.parent) if (n.visible === false) return false;
+  return true;
+}
+
 function pick(e) {
   pointer.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects(objectsGroup.children)
-    .filter(h => h.object.visible);
-  return hits.length ? objects.find(o => o.sprite === hits[0].object) : null;
+  const hits = raycaster.intersectObjects([objectsGroup, planetsGroup, moonsGroup, sunSprite], true)
+    .filter(h => h.object.userData.obj && visibleThrough(h.object));
+  if (!hits.length) return null;
+  // moons sit inside their planet's larger glow quad — prefer them on near-ties
+  for (const h of hits) {
+    if (h.object.userData.obj.data.kind === 'moon' && h.distance - hits[0].distance < 1.5) {
+      return h.object.userData.obj;
+    }
+  }
+  return hits[0].object.userData.obj;
 }
 
 canvas.addEventListener('pointermove', e => {
@@ -1848,8 +2305,13 @@ canvas.addEventListener('pointermove', e => {
   canvas.classList.toggle('hovering', !!hit);
   if (hit) {
     const d = hit.data;
-    tooltip.innerHTML = `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}
-      <div class="sub">${d.type} · ${fmtDistance(d.dist_kly)}</div>`;
+    const sub = !d.kind ? `${d.type} · ${fmtDistance(d.dist_kly)}` :
+      d.kind === 'moon' ? `Moon of ${solarBySlug[d.parent].data.name}` :
+      d.kind === 'star' ? 'Our star · the centre of this map' :
+      `${SOLAR_KINDS[d.kind].badge} · ${hit.helioAU.toFixed(2)} AU from Sun`;
+    tooltip.innerHTML = d.kind
+      ? `<b>${d.name}</b><div class="sub">${sub}</div>`
+      : `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}<div class="sub">${sub}</div>`;
     tooltip.style.display = 'block';
     tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth - 250) + 'px';
     tooltip.style.top = (e.clientY + 14) + 'px';
@@ -1876,6 +2338,9 @@ canvas.addEventListener('pointerup', e => {
   if (m) {
     const obj = objects.find(o => o.data.m === Number(m[1]));
     if (obj) select(obj, { fly: true });
+  } else {
+    const obj = solarBySlug[location.hash.slice(1).toLowerCase()];
+    if (obj) select(obj, { fly: true });
   }
 }
 
@@ -1899,8 +2364,19 @@ function animate(now) {
     const s = selected.scale * 1.55 * pulse;
     selRing.scale.set(s, s, 1);
   }
+  // reveal the solar system as the camera approaches the Sun
+  const camR = camera.position.length();
+  const solarT = THREE.MathUtils.clamp(
+    (camR - SOLAR_FADE_NEAR) / (SOLAR_FADE_FAR - SOLAR_FADE_NEAR), 0, 1);
+  for (const f of solarFadeMats) f.mat.opacity = f.base * (1 - solarT);
+  const moonT = THREE.MathUtils.clamp(
+    (controls.getDistance() - MOON_LABEL_NEAR) / (MOON_LABEL_FAR - MOON_LABEL_NEAR), 0, 1);
+  for (const f of moonLabelFadeMats) f.mat.opacity = f.base * (1 - moonT);
+  sunLabel.material.opacity = solarT;
+
   const sunPulse = 1 + 0.06 * Math.sin(now / 600);
-  sunSprite.scale.set(13 * sunPulse, 13 * sunPulse, 1);
+  const sunSize = 13 * THREE.MathUtils.lerp(0.14, 1, solarT) * sunPulse;
+  sunSprite.scale.set(sunSize, sunSize, 1);
 
   controls.update();
   renderer.render(scene, camera);
@@ -1914,7 +2390,7 @@ window.addEventListener('resize', () => {
 });
 
 // debug/automation handle
-window.__ATLAS = { objects, camera, select, deselect, skyGroupState, boundaryState, THREE };
+window.__ATLAS = { objects, solarObjects, solarBySlug, camera, select, deselect, skyGroupState, boundaryState, THREE };
 </script>
 </body>
 </html>
