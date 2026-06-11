@@ -1,5 +1,7 @@
 # Messier Atlas
 
+**Live site: <https://yourcio.ca/messier-atlas/>**
+
 An interactive 3D map of all 110 Messier objects, rendered in the browser with
 [Three.js](https://threejs.org/). The Sun sits at the origin; every object is
 placed in its true direction on the sky (J2000 coordinates rotated into the
