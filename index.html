@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Messier Atlas — a 3D map of the Messier catalogue</title>
+<style>
+  :root {
+    --bg: #04060c;
+    --panel: rgba(13, 18, 32, 0.82);
+    --panel-border: rgba(140, 170, 255, 0.14);
+    --text: #dde6f5;
+    --text-dim: #8593ad;
+    --accent: #8ab4ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  #scene { position: fixed; inset: 0; display: block; cursor: grab; }
+  #scene:active { cursor: grabbing; }
+  #scene.hovering { cursor: pointer; }
+
+  .overlay {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* ---------- header ---------- */
+  #header { top: 16px; left: 16px; padding: 14px 18px; max-width: 330px; }
+  #header h1 { font-size: 19px; font-weight: 650; letter-spacing: 0.3px; }
+  #header h1 span { color: var(--accent); }
+  #header p { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  #searchwrap { position: relative; margin-top: 10px; }
+  #search {
+    width: 100%; padding: 8px 12px;
+    background: rgba(8, 12, 22, 0.9);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    color: var(--text); font-size: 13px; outline: none;
+  }
+  #search:focus { border-color: rgba(138, 180, 255, 0.45); }
+  #suggestions {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: rgba(10, 14, 26, 0.97);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    max-height: 264px; overflow-y: auto;
+    display: none; z-index: 30;
+  }
+  #suggestions div { padding: 8px 12px; cursor: pointer; font-size: 13px; }
+  #suggestions div:hover, #suggestions div.active { background: rgba(138, 180, 255, 0.14); }
+  #suggestions .sub { color: var(--text-dim); font-size: 11px; }
+  #resetview {
+    margin-top: 8px; width: 100%; padding: 7px 0;
+    background: transparent; border: 1px solid var(--panel-border);
+    border-radius: 8px; color: var(--text-dim);
+    font-size: 12px; cursor: pointer;
+  }
+  #resetview:hover { color: var(--text); border-color: rgba(138, 180, 255, 0.4); }
+
+  /* ---------- legend ---------- */
+  #legend { left: 16px; bottom: 16px; padding: 12px 16px; }
+  #legend h2 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px;
+  }
+  #legend label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; padding: 2.5px 0; cursor: pointer; user-select: none;
+  }
+  #legend label.off { opacity: 0.35; }
+  #legend label.sky-option.off { opacity: 0.68; }
+  #legend .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  #legend .section { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--panel-border); }
+  #legend .line-swatch {
+    width: 18px; height: 0; flex: none;
+    border-top: 2px solid var(--swatch-color, var(--accent));
+  }
+  #legend label.sky-option.off .line-swatch { opacity: 0.9; }
+  #legend .line-swatch.dashed { border-top-style: dashed; }
+  #legend .count { color: var(--text-dim); margin-left: auto; padding-left: 12px; }
+  #legend .count.loading {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  #legend input { display: none; }
+
+  /* ---------- hint ---------- */
+  #hint {
+    right: 16px; bottom: 16px; padding: 10px 16px;
+    color: var(--text); font-size: 13px; border-radius: 10px;
+    border-color: rgba(140, 170, 255, 0.28);
+  }
+
+  /* ---------- tooltip ---------- */
+  #tooltip {
+    position: fixed; pointer-events: none; display: none; z-index: 40;
+    background: rgba(10, 14, 26, 0.95);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 6px 10px; font-size: 12.5px;
+    max-width: 240px;
+  }
+  #tooltip .sub { color: var(--text-dim); font-size: 11px; }
+
+  /* ---------- info panel ---------- */
+  #panel {
+    top: 16px; right: 16px; bottom: 16px; width: 340px;
+    padding: 0; overflow-y: auto; display: none; z-index: 20;
+  }
+  #panel.open { display: block; }
+  #panel img {
+    width: 100%; aspect-ratio: 4 / 3; max-height: 240px;
+    object-fit: cover; display: block;
+    background: #0a0e1a;
+    border-radius: 13px 13px 0 0;
+  }
+  #panel .body { padding: 16px 18px 20px; }
+  #panel .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.5px; padding: 3px 10px; border-radius: 999px;
+    margin-bottom: 8px; color: #04060c;
+  }
+  #panel h2 { font-size: 21px; font-weight: 650; line-height: 1.2; }
+  #panel .designation { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
+  #panel dl {
+    display: grid; grid-template-columns: auto 1fr; gap: 5px 14px;
+    margin-top: 14px; font-size: 13px;
+  }
+  #panel dt { color: var(--text-dim); }
+  #panel dd { text-align: right; }
+  #panel .lighttime {
+    margin-top: 14px; padding: 10px 12px; font-size: 12.5px;
+    color: #b9c6e0; background: rgba(138, 180, 255, 0.08);
+    border-left: 3px solid rgba(138, 180, 255, 0.5); border-radius: 6px;
+  }
+  #panel .now-control {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--panel-border);
+  }
+  #panel .now-control label {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text); font-size: 12.5px; cursor: pointer; user-select: none;
+  }
+  #panel .now-control label.unavailable {
+    color: var(--text-dim); cursor: default;
+  }
+  #panel .now-control input { accent-color: var(--accent); }
+  #p-now-note {
+    display: none; margin-top: 8px; color: var(--text-dim); font-size: 12px;
+  }
+  #p-now-note.show { display: block; }
+  #panel .sky-planner {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--panel-border);
+  }
+  #panel .section-label {
+    display: block; color: var(--text-dim); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 7px;
+  }
+  #panel .location-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 7px;
+  }
+  #sky-city {
+    min-width: 0; padding: 7px 9px;
+    background: rgba(8, 12, 22, 0.9);
+    border: 1px solid var(--panel-border); border-radius: 8px;
+    color: var(--text); font-size: 12.5px; outline: none;
+  }
+  #sky-city:focus { border-color: rgba(138, 180, 255, 0.45); }
+  #panel .button-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 7px;
+  }
+  #panel .mini-button, #sky-open {
+    padding: 7px 9px; border: 1px solid var(--panel-border);
+    border-radius: 8px; background: rgba(138, 180, 255, 0.09);
+    color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  #panel .mini-button:hover, #sky-open:hover {
+    border-color: rgba(138, 180, 255, 0.42);
+    background: rgba(138, 180, 255, 0.15);
+  }
+  #panel .mini-button:disabled, #sky-open:disabled {
+    opacity: 0.45; cursor: default;
+  }
+  #sky-open { width: 100%; margin-top: 8px; color: var(--accent); }
+  #sky-location-status {
+    min-height: 18px; margin-top: 7px; color: var(--text-dim); font-size: 12px;
+  }
+
+  /* ---------- sky chart ---------- */
+  #sky-modal {
+    inset: 16px; padding: 0; z-index: 60; display: none;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+  #sky-modal.open { display: grid; }
+  #sky-modal .sky-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 13px 16px; border-bottom: 1px solid var(--panel-border);
+  }
+  #sky-modal h2 { font-size: 16px; font-weight: 650; }
+  #sky-subtitle { color: var(--text-dim); font-size: 12px; margin-top: 1px; }
+  #sky-close {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(5, 8, 16, 0.7); border: 1px solid var(--panel-border);
+    color: var(--text); cursor: pointer; font-size: 15px; line-height: 1;
+  }
+  #sky-close:hover { background: rgba(5, 8, 16, 0.95); }
+  #sky-chart {
+    width: 100%; height: 100%; min-height: 320px; display: block;
+    background: radial-gradient(circle at 50% 42%, #101b35 0%, #050812 72%);
+  }
+  #sky-chart.hovering { cursor: pointer; }
+  #sky-object-card {
+    position: absolute; right: 18px; top: 70px; width: min(280px, calc(100vw - 72px));
+    display: none; padding: 12px 14px;
+    background: rgba(8, 12, 22, 0.88);
+    border: 1px solid rgba(140, 170, 255, 0.22);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  #sky-object-card.show { display: block; }
+  #sky-object-card .badge {
+    display: inline-block; font-size: 10px; font-weight: 700; color: #04060c;
+    letter-spacing: 0.45px; padding: 2px 8px; border-radius: 999px; margin-bottom: 6px;
+  }
+  #sky-object-card img {
+    width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;
+    margin-bottom: 9px; border-radius: 7px; background: #0a0e1a;
+  }
+  #sky-object-card img.hide { display: none; }
+  #sky-object-card h3 { font-size: 15px; line-height: 1.25; margin-bottom: 2px; }
+  #sky-object-card .sub { color: var(--text-dim); font-size: 12px; margin-bottom: 8px; }
+  #sky-object-card .note {
+    margin-top: 8px; color: #b9c6e0; font-size: 12px;
+    border-left: 2px solid rgba(138, 180, 255, 0.45); padding-left: 8px;
+  }
+  #sky-object-card dl {
+    display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12px;
+  }
+  #sky-object-card dt { color: var(--text-dim); }
+  #sky-object-card dd { text-align: right; }
+  #sky-modal .sky-controls {
+    padding: 12px 16px 14px; border-top: 1px solid var(--panel-border);
+    background: rgba(7, 10, 18, 0.6);
+  }
+  #sky-night-track {
+    width: 100%; height: 28px; display: block; margin-bottom: 7px;
+    border: 1px solid rgba(140, 170, 255, 0.18);
+    border-radius: 7px;
+    background: #03050b;
+  }
+  #sky-time {
+    width: 100%; accent-color: var(--accent);
+  }
+  #sky-time-label {
+    display: block; margin-top: 4px; color: var(--text); font-size: 13px;
+  }
+  #sky-readout { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+  #panel a.wiki {
+    display: block; text-align: center; margin-top: 14px; padding: 9px 0;
+    background: rgba(138, 180, 255, 0.12); border: 1px solid rgba(138, 180, 255, 0.3);
+    border-radius: 8px; color: var(--accent); text-decoration: none; font-size: 13px;
+  }
+  #panel a.wiki:hover { background: rgba(138, 180, 255, 0.22); }
+  #closepanel {
+    position: absolute; top: 10px; right: 10px; width: 30px; height: 30px;
+    background: rgba(5, 8, 16, 0.7); border: 1px solid var(--panel-border);
+    border-radius: 50%; color: var(--text); font-size: 15px; cursor: pointer;
+    line-height: 1;
+  }
+  #closepanel:hover { background: rgba(5, 8, 16, 0.95); }
+
+  @media (max-width: 720px) {
+    #header { max-width: calc(100vw - 32px); }
+    #panel { top: auto; left: 16px; right: 16px; width: auto; max-height: 55vh; }
+    #hint { display: none; }
+    #sky-modal { inset: 10px; }
+    #sky-object-card {
+      left: 12px; right: 12px; top: auto; bottom: 92px; width: auto;
+    }
+    #panel .button-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div id="header" class="overlay">
+  <h1>Messier <span>Atlas</span></h1>
+  <p>All 110 Messier objects mapped in 3D around the Sun.
+     Distances are log-compressed: each ring is 10&times; farther than the last.</p>
+  <div id="searchwrap">
+    <input id="search" type="text" placeholder="Search — try “M31” or “Crab”…" autocomplete="off" spellcheck="false">
+    <div id="suggestions"></div>
+  </div>
+  <button id="resetview">Reset view</button>
+</div>
+
+<div id="legend" class="overlay">
+  <h2>Catalogue</h2>
+</div>
+
+<div id="hint" class="overlay">Drag to rotate &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Right-drag to pan &nbsp;·&nbsp; Click an object</div>
+
+<div id="tooltip"></div>
+
+<div id="panel" class="overlay">
+  <button id="closepanel" title="Close">&times;</button>
+  <img id="p-img" alt="" referrerpolicy="no-referrer">
+  <div class="body">
+    <span class="badge" id="p-badge"></span>
+    <h2 id="p-name"></h2>
+    <div class="designation" id="p-desig"></div>
+    <dl>
+      <dt>Type</dt><dd id="p-type"></dd>
+      <dt>Distance</dt><dd id="p-dist"></dd>
+      <dt>Constellation</dt><dd id="p-const"></dd>
+      <dt>Magnitude</dt><dd id="p-mag"></dd>
+      <dt>Apparent size</dt><dd id="p-size"></dd>
+      <dt>Position</dt><dd id="p-radec"></dd>
+    </dl>
+    <div class="lighttime" id="p-light"></div>
+    <div class="now-control">
+      <label id="now-toggle-label"><input id="now-toggle" type="checkbox"> <span id="now-toggle-text">Show estimated now position</span></label>
+      <div id="p-now-note"></div>
+    </div>
+    <div class="sky-planner">
+      <label class="section-label" for="sky-city">Viewing location</label>
+      <div class="location-row">
+        <input id="sky-city" type="text" placeholder="City" autocomplete="off" spellcheck="false">
+        <button class="mini-button" id="sky-city-btn">Find</button>
+      </div>
+      <div class="button-row">
+        <button class="mini-button" id="sky-locate-btn">Use current location</button>
+        <button id="sky-open" disabled>View sky</button>
+      </div>
+      <div id="sky-location-status"></div>
+    </div>
+    <a class="wiki" id="p-wiki" target="_blank" rel="noopener">Read on Wikipedia &rarr;</a>
+  </div>
+</div>
+
+<div id="sky-modal" class="overlay">
+  <div class="sky-head">
+    <div>
+      <h2 id="sky-title">Sky view</h2>
+      <div id="sky-subtitle"></div>
+    </div>
+    <button id="sky-close" title="Close">&times;</button>
+  </div>
+  <canvas id="sky-chart"></canvas>
+  <div id="sky-object-card"></div>
+  <div class="sky-controls">
+    <canvas id="sky-night-track"></canvas>
+    <input id="sky-time" type="range" min="0" max="1440" step="10" value="720">
+    <output id="sky-time-label"></output>
+    <div id="sky-readout"></div>
+  </div>
+</div>
+
+<script src="data/messier.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================== constants ============================== */
+
+const LOG_SCALE = 55;          // scene units per decade of distance
+const BASE_LY   = 100;         // distance (ly) that maps to radius 0
+const C_KM_S = 299792.458;
+const HUBBLE_KM_S_MPC = 70;    // simple local-universe Hubble-flow estimate
+const LY_PER_MPC = 3261563.7769;
+const LOCAL_GROUP_LIMIT_LY = 5e6;
+const NOW_ARROW_GAIN = 90;     // the true log-scale offset is usually too small to see
+const NOW_ARROW_MIN_LEN = 14;
+const NOW_ARROW_MAX_LEN = 78;
+const SKY_SCAN_DAYS = 7;
+const SKY_SCAN_STEP_MIN = 10;
+const SKY_SLIDER_SPAN_MIN = 24 * 60;
+const SKY_MIN_DARK_SUN_ALT = -12;
+
+const CATS = {
+  galaxy:    { label: 'Galaxies',          badge: 'Galaxy',           color: '#b18cff' },
+  globular:  { label: 'Globular clusters', badge: 'Globular cluster', color: '#ffc04d' },
+  open:      { label: 'Open clusters',     badge: 'Open cluster',     color: '#6fc3ff' },
+  nebula:    { label: 'Nebulae',           badge: 'Nebula',           color: '#ff7eb6' },
+  planetary: { label: 'Planetary nebulae', badge: 'Planetary nebula', color: '#5fe3c0' },
+  other:     { label: 'Other',             badge: 'Other',            color: '#e8e8e8' },
+};
+
+const CONSTELLATION_LINES_URL = 'https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/constellations.lines.json';
+const CONSTELLATION_BOUNDS_URL = 'https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/constellations.bounds.json';
+const ZODIAC_IDS = new Set(['Ari', 'Tau', 'Gem', 'Cnc', 'Leo', 'Vir', 'Lib', 'Sco', 'Sgr', 'Cap', 'Aqr', 'Psc']);
+
+const SKY_GROUPS = {
+  zodiac: {
+    label: 'Zodiac constellations',
+    color: 0x8ab4ff,
+    swatch: '#8ab4ff',
+    opacity: 0.48,
+  },
+  other: {
+    label: 'Other constellations',
+    color: 0xb9c7e6,
+    swatch: '#b9c7e6',
+    opacity: 0.34,
+  },
+};
+
+const SKY_BOUNDARY_LAYER = {
+  label: 'IAU boundaries',
+  color: 0x5fe3c0,
+  swatch: '#5fe3c0',
+  opacity: 0.24,
+  dashed: true,
+};
+
+const CONSTELLATION_NAMES = {
+  And: 'Andromeda', Ant: 'Antlia', Aps: 'Apus', Aqr: 'Aquarius',
+  Aql: 'Aquila', Ara: 'Ara', Ari: 'Aries', Aur: 'Auriga',
+  Boo: 'Bootes', Cae: 'Caelum', Cam: 'Camelopardalis', Cnc: 'Cancer',
+  CVn: 'Canes Venatici', CMa: 'Canis Major', CMi: 'Canis Minor',
+  Cap: 'Capricornus', Car: 'Carina', Cas: 'Cassiopeia', Cen: 'Centaurus',
+  Cep: 'Cepheus', Cet: 'Cetus', Cha: 'Chamaeleon', Cir: 'Circinus',
+  Col: 'Columba', Com: 'Coma Berenices', CrA: 'Corona Australis',
+  CrB: 'Corona Borealis', Crv: 'Corvus', Crt: 'Crater', Cru: 'Crux',
+  Cyg: 'Cygnus', Del: 'Delphinus', Dor: 'Dorado', Dra: 'Draco',
+  Equ: 'Equuleus', Eri: 'Eridanus', For: 'Fornax', Gem: 'Gemini',
+  Gru: 'Grus', Her: 'Hercules', Hor: 'Horologium', Hya: 'Hydra',
+  Hyi: 'Hydrus', Ind: 'Indus', Lac: 'Lacerta', Leo: 'Leo',
+  LMi: 'Leo Minor', Lep: 'Lepus', Lib: 'Libra', Lup: 'Lupus',
+  Lyn: 'Lynx', Lyr: 'Lyra', Men: 'Mensa', Mic: 'Microscopium',
+  Mon: 'Monoceros', Mus: 'Musca', Nor: 'Norma', Oct: 'Octans',
+  Oph: 'Ophiuchus', Ori: 'Orion', Pav: 'Pavo', Peg: 'Pegasus',
+  Per: 'Perseus', Phe: 'Phoenix', Pic: 'Pictor', Psc: 'Pisces',
+  PsA: 'Piscis Austrinus', Pup: 'Puppis', Pyx: 'Pyxis',
+  Ret: 'Reticulum', Sge: 'Sagitta', Sgr: 'Sagittarius', Sco: 'Scorpius',
+  Scl: 'Sculptor', Sct: 'Scutum', Ser: 'Serpens', Sex: 'Sextans',
+  Tau: 'Taurus', Tel: 'Telescopium', Tri: 'Triangulum',
+  TrA: 'Triangulum Australe', Tuc: 'Tucana', UMa: 'Ursa Major',
+  UMi: 'Ursa Minor', Vel: 'Vela', Vir: 'Virgo', Vol: 'Volans',
+  Vul: 'Vulpecula',
+};
+
+// J2000 equatorial -> galactic rotation (rows: galactic x, y, z)
+const EQ2GAL = [
+  [-0.0548755604, -0.8734370902, -0.4838350155],
+  [ 0.4941094279, -0.4448296300,  0.7469822445],
+  [-0.8676661490, -0.1980763734,  0.4559837762],
+];
+
+/* ============================== helpers ============================== */
+
+const radiusFor = ly => LOG_SCALE * Math.log10(ly / BASE_LY);
+
+// Scene frame: galactic plane horizontal, galactic centre toward +X, north galactic pole +Y.
+function radecToScene(raDeg, decDeg, radius) {
+  const ra = THREE.MathUtils.degToRad(raDeg);
+  const dec = THREE.MathUtils.degToRad(decDeg);
+  const v = [Math.cos(dec) * Math.cos(ra), Math.cos(dec) * Math.sin(ra), Math.sin(dec)];
+  const g = EQ2GAL.map(r => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
+  return new THREE.Vector3(g[0], g[2], -g[1]).multiplyScalar(radius);
+}
+
+function fmtDistance(kly) {
+  const ly = kly * 1000;
+  if (ly < 1e6) return `${Math.round(ly).toLocaleString()} ly`;
+  return `${(ly / 1e6).toLocaleString(undefined, { maximumFractionDigits: 1 })} million ly`;
+}
+
+function fmtCompactLy(ly) {
+  if (ly < 1000) return `${Math.round(ly).toLocaleString()} ly`;
+  if (ly < 1e6) return `${Math.round(ly / 1000).toLocaleString()} thousand ly`;
+  return `${(ly / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} million ly`;
+}
+
+function fmtLightTime(kly) {
+  const ly = kly * 1000;
+  let when;
+  if (ly < 1e4) when = `about ${Math.round(ly).toLocaleString()} years ago`;
+  else if (ly < 1e6) when = `about ${Math.round(ly / 1000).toLocaleString()},000 years ago`;
+  else when = `about ${(ly / 1e6).toLocaleString(undefined, { maximumFractionDigits: 1 })} million years ago`;
+  return `The light reaching your eyes from this object left it ${when}.`;
+}
+
+function fmtRaDec(raDeg, decDeg) {
+  const raH = raDeg / 15;
+  const h = Math.floor(raH);
+  const m = Math.round((raH - h) * 60);
+  const sign = decDeg < 0 ? '−' : '+';
+  const ad = Math.abs(decDeg);
+  const d = Math.floor(ad);
+  const am = Math.round((ad - d) * 60);
+  return `${h}h ${String(m).padStart(2, '0')}m, ${sign}${d}° ${String(am).padStart(2, '0')}′`;
+}
+
+const normDeg = deg => ((deg % 360) + 360) % 360;
+const normSignedDeg = deg => ((deg + 540) % 360) - 180;
+const degToRad = deg => deg * Math.PI / 180;
+const radToDeg = rad => rad * 180 / Math.PI;
+
+function julianDate(date) {
+  return date.getTime() / 86400000 + 2440587.5;
+}
+
+function gmstDeg(date) {
+  const jd = julianDate(date);
+  const t = (jd - 2451545.0) / 36525;
+  return normDeg(
+    280.46061837 +
+    360.98564736629 * (jd - 2451545.0) +
+    0.000387933 * t * t -
+    (t * t * t) / 38710000
+  );
+}
+
+function sunRaDec(date) {
+  const n = julianDate(date) - 2451545.0;
+  const meanLong = normDeg(280.46 + 0.9856474 * n);
+  const meanAnomaly = normDeg(357.528 + 0.9856003 * n);
+  const anomalyRad = degToRad(meanAnomaly);
+  const eclipticLong = normDeg(meanLong + 1.915 * Math.sin(anomalyRad) + 0.02 * Math.sin(2 * anomalyRad));
+  const obliquity = 23.439 - 0.0000004 * n;
+  const lambda = degToRad(eclipticLong);
+  const epsilon = degToRad(obliquity);
+  return {
+    ra: normDeg(radToDeg(Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda)))),
+    dec: radToDeg(Math.asin(Math.sin(epsilon) * Math.sin(lambda))),
+  };
+}
+
+function radecToHorizontal(raDeg, decDeg, date, location) {
+  const lat = degToRad(location.lat);
+  const dec = degToRad(decDeg);
+  const hourAngle = degToRad(normSignedDeg(gmstDeg(date) + location.lon - raDeg));
+  const sinAlt = Math.sin(dec) * Math.sin(lat) + Math.cos(dec) * Math.cos(lat) * Math.cos(hourAngle);
+  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+  const az = Math.atan2(
+    Math.sin(hourAngle),
+    Math.cos(hourAngle) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat)
+  ) + Math.PI;
+  return { alt: radToDeg(alt), az: normDeg(radToDeg(az)) };
+}
+
+function objectHorizontal(data, date, location) {
+  return radecToHorizontal(data.ra, data.dec, date, location);
+}
+
+function sunAltitude(date, location) {
+  const sun = sunRaDec(date);
+  return radecToHorizontal(sun.ra, sun.dec, date, location).alt;
+}
+
+function azLabel(az) {
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return dirs[Math.round(normDeg(az) / 45) % 8];
+}
+
+function formatSkyTime(date, location) {
+  const options = {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  };
+  if (location?.timezone) options.timeZone = location.timezone;
+  return new Intl.DateTimeFormat(undefined, options).format(date);
+}
+
+function makeGlowTexture(color) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  const col = new THREE.Color(color);
+  const rgb = `${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)}`;
+  g.addColorStop(0.0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.18, `rgba(${rgb},0.95)`);
+  g.addColorStop(0.45, `rgba(${rgb},0.28)`);
+  g.addColorStop(1.0, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+function makeRingTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 4;
+  ctx.shadowColor = 'rgba(160,200,255,0.8)';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.arc(128, 128, 104, 0, Math.PI * 2);
+  ctx.stroke();
+  return new THREE.CanvasTexture(c);
+}
+
+function makeTextSprite(text, { size = 26, color = '#9fb4d8', weight = 500, opacity = 1 } = {}) {
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  const font = `${weight} ${size}px "Segoe UI", system-ui, sans-serif`;
+  ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + 16;
+  const h = size + 18;
+  c.width = w * 2; c.height = h * 2;            // 2x for crispness
+  const ctx2 = c.getContext('2d');
+  ctx2.scale(2, 2);
+  ctx2.font = font;
+  ctx2.fillStyle = color;
+  ctx2.textBaseline = 'middle';
+  ctx2.shadowColor = 'rgba(0,0,0,0.9)';
+  ctx2.shadowBlur = 6;
+  ctx2.fillText(text, 8, h / 2);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity, depthTest: false });
+  const sp = new THREE.Sprite(mat);
+  const unit = 0.16;                            // world units per px of label
+  sp.scale.set(w * unit, h * unit, 1);
+  sp.renderOrder = 90;
+  return sp;
+}
+
+const CONSTELLATION_SHELL_RADIUS = radiusFor(1e8) + 42;
+const CONSTELLATION_LABEL_RADIUS = CONSTELLATION_SHELL_RADIUS + 9;
+
+function addPathSegments(path, points) {
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i];
+    if (a.length < 2 || b.length < 2) continue;
+    points.push(radecToScene(a[0], a[1], CONSTELLATION_SHELL_RADIUS));
+    points.push(radecToScene(b[0], b[1], CONSTELLATION_SHELL_RADIUS));
+  }
+}
+
+function addGeometrySegments(geometry, points) {
+  if (!geometry) return;
+
+  if (geometry.type === 'LineString') {
+    addPathSegments(geometry.coordinates, points);
+  } else if (geometry.type === 'MultiLineString' || geometry.type === 'Polygon') {
+    for (const path of geometry.coordinates) addPathSegments(path, points);
+  } else if (geometry.type === 'MultiPolygon') {
+    for (const polygon of geometry.coordinates) {
+      for (const path of polygon) addPathSegments(path, points);
+    }
+  }
+}
+
+function addPathPositions(path, positions) {
+  for (const coord of path) {
+    if (coord.length >= 2) positions.push(radecToScene(coord[0], coord[1], CONSTELLATION_LABEL_RADIUS));
+  }
+}
+
+function addGeometryPositions(geometry, positions) {
+  if (!geometry) return;
+
+  if (geometry.type === 'LineString') {
+    addPathPositions(geometry.coordinates, positions);
+  } else if (geometry.type === 'MultiLineString' || geometry.type === 'Polygon') {
+    for (const path of geometry.coordinates) addPathPositions(path, positions);
+  } else if (geometry.type === 'MultiPolygon') {
+    for (const polygon of geometry.coordinates) {
+      for (const path of polygon) addPathPositions(path, positions);
+    }
+  }
+}
+
+function featureLabelPosition(feature) {
+  const positions = [];
+  addGeometryPositions(feature.geometry, positions);
+  if (!positions.length) return null;
+
+  const centre = positions.reduce((sum, pos) => sum.add(pos), new THREE.Vector3());
+  if (centre.lengthSq() < 1) return positions[0];
+  return centre.normalize().multiplyScalar(CONSTELLATION_LABEL_RADIUS);
+}
+
+function isFeatureInSkyGroup(feature, groupKey) {
+  const isZodiac = ZODIAC_IDS.has(feature.id);
+  return groupKey === 'zodiac' ? isZodiac : !isZodiac;
+}
+
+function filterConstellationData(geoJson, groupKey) {
+  return {
+    ...geoJson,
+    features: (geoJson.features || []).filter(feature => isFeatureInSkyGroup(feature, groupKey)),
+  };
+}
+
+function makeConstellationGroup(geoJson, meta) {
+  const points = [];
+  for (const feature of geoJson.features || []) addGeometrySegments(feature.geometry, points);
+
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({
+    color: meta.color,
+    transparent: true,
+    opacity: meta.opacity,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const lineSegments = new THREE.LineSegments(geo, mat);
+  lineSegments.renderOrder = 4;
+
+  const group = new THREE.Group();
+  group.add(lineSegments);
+  group.visible = false;
+  return { group, count: geoJson.features?.length || 0 };
+}
+
+function makeConstellationLabelGroup(geoJson) {
+  const group = new THREE.Group();
+
+  for (const feature of geoJson.features || []) {
+    const pos = featureLabelPosition(feature);
+    if (!pos) continue;
+
+    const label = makeTextSprite(CONSTELLATION_NAMES[feature.id] || feature.id, {
+      size: 19,
+      color: '#d7e3fa',
+      weight: 650,
+      opacity: 0.76,
+    });
+    label.position.copy(pos);
+    label.renderOrder = 85;
+    group.add(label);
+  }
+
+  group.visible = false;
+  return group;
+}
+
+function estimatePresentPosition(obj) {
+  const d = obj.data;
+  const ly = d.dist_kly * 1000;
+
+  if (d.cat !== 'galaxy') {
+    return {
+      available: false,
+      note: 'A trustworthy now-position arrow needs the object’s 3D velocity. This catalogue has direction and distance only, so local clusters and nebulae stay at their observed light-time position here.',
+    };
+  }
+
+  if (ly < LOCAL_GROUP_LIMIT_LY) {
+    return {
+      available: false,
+      note: 'This is a Local Group galaxy. Its peculiar motion dominates cosmic expansion, and this catalogue does not include the velocity vector needed for a reliable present-day arrow.',
+    };
+  }
+
+  const mpc = ly / LY_PER_MPC;
+  const recessionKmS = HUBBLE_KM_S_MPC * mpc;
+  const deltaLy = ly * (recessionKmS / C_KM_S);
+  const estimatedLy = ly + deltaLy;
+  const nowPos = radecToScene(d.ra, d.dec, radiusFor(estimatedLy));
+  const sceneDelta = nowPos.clone().sub(obj.pos);
+
+  if (sceneDelta.lengthSq() < 1e-6) {
+    return {
+      available: false,
+      note: 'The estimated present-day shift is too small to resolve on this log-compressed atlas.',
+    };
+  }
+
+  return {
+    available: true,
+    nowPos,
+    sceneDelta,
+    deltaLy,
+    recessionKmS,
+    note: `Simple Hubble-flow estimate: about ${fmtCompactLy(deltaLy)} farther along the same sightline since the light left. The arrow is amplified for visibility on the log-compressed map.`,
+  };
+}
+
+function makeNowArrow(obj, estimate) {
+  const color = 0xffdf87;
+  const start = obj.pos.clone();
+  const dir = estimate.sceneDelta.clone().normalize();
+  const trueLen = estimate.sceneDelta.length();
+  const visualLen = THREE.MathUtils.clamp(trueLen * NOW_ARROW_GAIN, NOW_ARROW_MIN_LEN, NOW_ARROW_MAX_LEN);
+  const end = start.clone().add(dir.clone().multiplyScalar(visualLen));
+
+  const group = new THREE.Group();
+
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([start, end]),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.92, depthTest: false, depthWrite: false })
+  );
+  line.renderOrder = 96;
+  group.add(line);
+
+  const head = new THREE.Mesh(
+    new THREE.ConeGeometry(2.6, 7, 24),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false })
+  );
+  head.position.copy(end);
+  head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  head.renderOrder = 97;
+  group.add(head);
+
+  const marker = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: nowGlowTexture, transparent: true,
+    blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, opacity: 0.82,
+  }));
+  marker.position.copy(end);
+  marker.scale.set(10, 10, 1);
+  marker.renderOrder = 98;
+  group.add(marker);
+
+  const label = makeTextSprite('estimated now', { size: 20, color: '#ffedbd', weight: 650, opacity: 0.9 });
+  label.position.copy(end).add(new THREE.Vector3(0, 8, 0));
+  label.renderOrder = 99;
+  group.add(label);
+
+  return group;
+}
+
+function findBestViewingTime(data, location) {
+  const start = new Date();
+  let bestAny = null;
+  let bestVisible = null;
+  let bestDark = null;
+  const steps = SKY_SCAN_DAYS * 24 * 60 / SKY_SCAN_STEP_MIN;
+
+  for (let i = 0; i <= steps; i++) {
+    const date = new Date(start.getTime() + i * SKY_SCAN_STEP_MIN * 60000);
+    const horizontal = objectHorizontal(data, date, location);
+    const sunAlt = sunAltitude(date, location);
+    const sample = { date, horizontal, sunAlt };
+
+    if (!bestAny || horizontal.alt > bestAny.horizontal.alt) bestAny = sample;
+    if (horizontal.alt > 0 && (!bestVisible || horizontal.alt > bestVisible.horizontal.alt)) bestVisible = sample;
+    if (
+      horizontal.alt > 10 &&
+      sunAlt <= SKY_MIN_DARK_SUN_ALT &&
+      (!bestDark || horizontal.alt > bestDark.horizontal.alt)
+    ) {
+      bestDark = sample;
+    }
+  }
+
+  return bestDark || bestVisible || bestAny;
+}
+
+function skyPoint(horizontal, cx, cy, radius, { clamp = false } = {}) {
+  if (horizontal.alt < 0 && !clamp) return null;
+  const alt = clamp ? Math.max(0, horizontal.alt) : horizontal.alt;
+  const r = ((90 - alt) / 90) * radius;
+  const az = degToRad(horizontal.az);
+  return {
+    x: cx + r * Math.sin(az),
+    y: cy - r * Math.cos(az),
+    r,
+  };
+}
+
+function messierDisplayName(data) {
+  return `M${data.m}${data.name ? ` · ${data.name}` : ''}`;
+}
+
+function angularSeparationDeg(a, b) {
+  const ra1 = degToRad(a.ra), ra2 = degToRad(b.ra);
+  const dec1 = degToRad(a.dec), dec2 = degToRad(b.dec);
+  const cosSep = Math.sin(dec1) * Math.sin(dec2) +
+    Math.cos(dec1) * Math.cos(dec2) * Math.cos(ra1 - ra2);
+  return radToDeg(Math.acos(Math.max(-1, Math.min(1, cosSep))));
+}
+
+/* ============================== scene setup ============================== */
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04060c);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 12000);
+const HOME_POS = new THREE.Vector3(230, 290, 560);
+camera.position.copy(HOME_POS);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 25;
+controls.maxDistance = 1600;
+controls.zoomToCursor = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.35;
+controls.addEventListener('start', () => { controls.autoRotate = false; });
+
+/* ---------- starfield ---------- */
+
+function addStars(count, { band = false, size = 1.6, opacity = 0.85 } = {}) {
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  const tints = [[1, 1, 1], [0.78, 0.85, 1], [1, 0.93, 0.78], [1, 0.82, 0.7]];
+  for (let i = 0; i < count; i++) {
+    let x, y, z;
+    if (band) {
+      // concentrated near the galactic plane (scene y ~ 0)
+      const lon = Math.random() * Math.PI * 2;
+      let lat = 0;
+      for (let k = 0; k < 4; k++) lat += Math.random() - 0.5;   // ~gaussian
+      lat *= 0.16;
+      y = Math.sin(lat); const cl = Math.cos(lat);
+      x = cl * Math.cos(lon); z = cl * Math.sin(lon);
+    } else {
+      do { x = Math.random() * 2 - 1; y = Math.random() * 2 - 1; z = Math.random() * 2 - 1; }
+      while (x * x + y * y + z * z > 1 || x * x + y * y + z * z < 0.01);
+      const n = 1 / Math.hypot(x, y, z); x *= n; y *= n; z *= n;
+    }
+    const r = 2800 + Math.random() * 1400;
+    pos.set([x * r, y * r, z * r], i * 3);
+    const t = tints[(Math.random() * tints.length) | 0];
+    const b = 0.5 + Math.random() * 0.5;
+    col.set([t[0] * b, t[1] * b, t[2] * b], i * 3);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size, sizeAttenuation: false, vertexColors: true,
+    transparent: true, opacity, depthWrite: false,
+  });
+  scene.add(new THREE.Points(geo, mat));
+}
+addStars(5200);
+addStars(5200, { band: true, size: 1.9, opacity: 0.55 });
+
+/* ---------- distance rings ---------- */
+
+const ringsGroup = new THREE.Group();
+const RING_DEFS = [
+  [1e3, '1,000 ly'], [1e4, '10,000 ly'], [1e5, '100,000 ly'],
+  [1e6, '1 million ly'], [1e7, '10 million ly'], [1e8, '100 million ly'],
+];
+for (const [ly, label] of RING_DEFS) {
+  const r = radiusFor(ly);
+  const pts = [];
+  for (let i = 0; i <= 180; i++) {
+    const a = (i / 180) * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0x5a70a8, transparent: true, opacity: 0.65 });
+  ringsGroup.add(new THREE.Line(geo, mat));
+  const tag = makeTextSprite(label, { size: 26, color: '#a8bce0' });
+  tag.position.set(0, 2.5, r);
+  ringsGroup.add(tag);
+}
+scene.add(ringsGroup);
+
+/* ---------- constellation overlay shell ---------- */
+
+const skyLayerRoot = new THREE.Group();
+scene.add(skyLayerRoot);
+
+/* ---------- Sun & galactic centre markers ---------- */
+
+const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeGlowTexture('#ffd76a'), transparent: true,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+sunSprite.scale.set(13, 13, 1);
+scene.add(sunSprite);
+const sunLabel = makeTextSprite('Sun — you are here', { size: 26, color: '#ffe9a8', weight: 600 });
+sunLabel.position.set(0, -9, 0);
+scene.add(sunLabel);
+
+const gcPos = radecToScene(266.4168, -29.0078, radiusFor(26000));  // Sgr A*
+const gcSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeGlowTexture('#ffb36a'), transparent: true,
+  blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.9,
+}));
+gcSprite.scale.set(9, 9, 1);
+gcSprite.position.copy(gcPos);
+scene.add(gcSprite);
+const gcLabel = makeTextSprite('Galactic centre · 26,000 ly', { size: 22, color: '#d8a87a' });
+gcLabel.position.copy(gcPos).add(new THREE.Vector3(0, -7, 0));
+scene.add(gcLabel);
+
+/* ---------- Messier objects ---------- */
+
+const catTextures = Object.fromEntries(
+  Object.entries(CATS).map(([k, v]) => [k, makeGlowTexture(v.color)])
+);
+const nowGlowTexture = makeGlowTexture('#ffdf87');
+
+const objectsGroup = new THREE.Group();
+scene.add(objectsGroup);
+
+const objects = window.MESSIER.map(d => {
+  const pos = radecToScene(d.ra, d.dec, radiusFor(d.dist_kly * 1000));
+  const mat = new THREE.SpriteMaterial({
+    map: catTextures[d.cat], transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const sprite = new THREE.Sprite(mat);
+  const s = THREE.MathUtils.clamp(7 + (9.5 - d.mag) * 1.1, 6, 17);
+  sprite.scale.set(s, s, 1);
+  sprite.position.copy(pos);
+  sprite.userData = d;
+  objectsGroup.add(sprite);
+  return { data: d, sprite, pos, scale: s };
+});
+
+/* ---------- selection ring ---------- */
+
+const selRing = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeRingTexture(), transparent: true, depthTest: false,
+}));
+selRing.visible = false;
+selRing.renderOrder = 95;
+scene.add(selRing);
+
+const nowGroup = new THREE.Group();
+scene.add(nowGroup);
+
+/* ============================== UI ============================== */
+
+const $ = id => document.getElementById(id);
+const tooltip = $('tooltip'), panel = $('panel'), searchBox = $('search'), sugBox = $('suggestions');
+const nowToggle = $('now-toggle'), nowNote = $('p-now-note');
+const nowToggleLabel = $('now-toggle-label'), nowToggleText = $('now-toggle-text');
+const skyCityInput = $('sky-city'), skyCityBtn = $('sky-city-btn'), skyLocateBtn = $('sky-locate-btn');
+const skyOpenBtn = $('sky-open'), skyLocationStatus = $('sky-location-status');
+const skyModal = $('sky-modal'), skyTitle = $('sky-title'), skySubtitle = $('sky-subtitle');
+const skyClose = $('sky-close'), skyCanvas = $('sky-chart'), skyTime = $('sky-time');
+const skyTimeLabel = $('sky-time-label'), skyReadout = $('sky-readout');
+const skyNightTrack = $('sky-night-track'), skyObjectCard = $('sky-object-card');
+
+const skyGroupState = Object.fromEntries(
+  Object.keys(SKY_GROUPS).map(key => [key, {
+    lineGroup: null, labelGroup: null, boundaryGroup: null,
+    count: 0, boundaryCount: 0,
+    loading: null, boundaryLoading: null, wanted: false,
+  }])
+);
+const constellationData = { lines: null, bounds: null };
+const constellationLoading = { lines: null, bounds: null };
+const boundaryState = { wanted: false };
+let boundaryInput = null, boundaryLabel = null, boundaryStatus = null;
+let observingLocation = null;
+const skyViewState = { obj: null, location: null, startTime: null };
+let skyHitTargets = [];
+let skyDetailObject = null;
+
+async function loadConstellationData(kind) {
+  if (constellationData[kind]) return constellationData[kind];
+  if (constellationLoading[kind]) return constellationLoading[kind];
+
+  const url = kind === 'lines' ? CONSTELLATION_LINES_URL : CONSTELLATION_BOUNDS_URL;
+  constellationLoading[kind] = fetch(url)
+    .then(response => {
+      if (!response.ok) throw new Error(`Failed to load constellation ${kind}: ${response.status}`);
+      return response.json();
+    })
+    .then(geoJson => {
+      constellationData[kind] = geoJson;
+      return geoJson;
+    })
+    .finally(() => { constellationLoading[kind] = null; });
+
+  return constellationLoading[kind];
+}
+
+function activeSkyGroupKeys() {
+  return Object.keys(SKY_GROUPS).filter(key => skyGroupState[key].wanted);
+}
+
+function boundaryTargetKeys() {
+  const active = activeSkyGroupKeys();
+  return active.length ? active : Object.keys(SKY_GROUPS);
+}
+
+function updateSkyGroupVisibility(key) {
+  const state = skyGroupState[key];
+  if (state.lineGroup) state.lineGroup.visible = state.wanted;
+  if (state.labelGroup) state.labelGroup.visible = state.wanted;
+  if (state.boundaryGroup) state.boundaryGroup.visible = boundaryState.wanted && boundaryTargetKeys().includes(key);
+}
+
+function updateBoundaryStatus() {
+  if (!boundaryStatus) return;
+  if (!boundaryState.wanted) {
+    boundaryStatus.textContent = '';
+    boundaryStatus.classList.remove('loading');
+    return;
+  }
+
+  const count = boundaryTargetKeys().reduce((total, key) => total + skyGroupState[key].boundaryCount, 0);
+  boundaryStatus.textContent = count || 'loading';
+  boundaryStatus.classList.toggle('loading', !count);
+}
+
+async function ensureSkyGroup(key) {
+  const state = skyGroupState[key];
+  if (state.lineGroup && state.labelGroup) return state;
+  if (state.loading) return state.loading;
+
+  state.loading = loadConstellationData('lines')
+    .then(geoJson => {
+      const groupData = filterConstellationData(geoJson, key);
+      const built = makeConstellationGroup(groupData, SKY_GROUPS[key]);
+      state.lineGroup = built.group;
+      state.labelGroup = makeConstellationLabelGroup(groupData);
+      state.count = built.count;
+      skyLayerRoot.add(state.lineGroup);
+      skyLayerRoot.add(state.labelGroup);
+      return state;
+    })
+    .finally(() => { state.loading = null; });
+
+  return state.loading;
+}
+
+async function ensureBoundaryGroup(key) {
+  const state = skyGroupState[key];
+  if (state.boundaryGroup) return state;
+  if (state.boundaryLoading) return state.boundaryLoading;
+
+  state.boundaryLoading = loadConstellationData('bounds')
+    .then(geoJson => {
+      const groupData = filterConstellationData(geoJson, key);
+      const built = makeConstellationGroup(groupData, SKY_BOUNDARY_LAYER);
+      state.boundaryGroup = built.group;
+      state.boundaryCount = built.count;
+      skyLayerRoot.add(state.boundaryGroup);
+      return state;
+    })
+    .finally(() => { state.boundaryLoading = null; });
+
+  return state.boundaryLoading;
+}
+
+async function syncBoundaryLayer() {
+  if (!boundaryInput) return;
+
+  if (!boundaryState.wanted) {
+    for (const key of Object.keys(SKY_GROUPS)) updateSkyGroupVisibility(key);
+    updateBoundaryStatus();
+    return;
+  }
+
+  const keys = boundaryTargetKeys();
+  boundaryStatus.textContent = keys.some(key => !skyGroupState[key].boundaryGroup) ? 'loading' : '';
+  boundaryStatus.classList.toggle('loading', boundaryStatus.textContent === 'loading');
+  boundaryInput.disabled = true;
+
+  try {
+    await Promise.all(keys.map(ensureBoundaryGroup));
+    boundaryInput.disabled = false;
+    for (const key of Object.keys(SKY_GROUPS)) updateSkyGroupVisibility(key);
+    updateBoundaryStatus();
+  } catch (err) {
+    console.error(err);
+    boundaryInput.disabled = false;
+    boundaryInput.checked = false;
+    boundaryState.wanted = false;
+    boundaryLabel.classList.add('off');
+    boundaryStatus.textContent = 'unavailable';
+    boundaryStatus.classList.add('loading');
+  }
+}
+
+async function toggleSkyGroup(key, input, label, status) {
+  const state = skyGroupState[key];
+  state.wanted = input.checked;
+  label.classList.toggle('off', !state.wanted);
+
+  if (!state.wanted) {
+    status.textContent = '';
+    status.classList.remove('loading');
+    updateSkyGroupVisibility(key);
+    await syncBoundaryLayer();
+    return;
+  }
+
+  status.textContent = state.lineGroup ? state.count : 'loading';
+  status.classList.toggle('loading', !state.lineGroup);
+  input.disabled = true;
+
+  try {
+    await ensureSkyGroup(key);
+    input.disabled = false;
+    if (!state.wanted) return;
+    updateSkyGroupVisibility(key);
+    status.textContent = state.count;
+    status.classList.remove('loading');
+    await syncBoundaryLayer();
+  } catch (err) {
+    console.error(err);
+    input.disabled = false;
+    input.checked = false;
+    state.wanted = false;
+    label.classList.add('off');
+    status.textContent = 'unavailable';
+    status.classList.add('loading');
+  }
+}
+
+async function toggleBoundaryLayer(input, label, status) {
+  boundaryState.wanted = input.checked;
+  label.classList.toggle('off', !boundaryState.wanted);
+  await syncBoundaryLayer();
+}
+
+function clearNowOverlay() {
+  nowGroup.clear();
+  nowNote.textContent = '';
+  nowNote.classList.remove('show');
+}
+
+function setNowControlForSelection(obj) {
+  clearNowOverlay();
+  nowToggle.checked = false;
+  nowToggle.disabled = true;
+  nowToggleLabel.classList.add('unavailable');
+  nowToggleText.textContent = 'Now position not available';
+
+  if (!obj) {
+    nowToggleLabel.classList.remove('unavailable');
+    nowToggleText.textContent = 'Show estimated now position';
+    return null;
+  }
+
+  const estimate = estimatePresentPosition(obj);
+  nowNote.textContent = estimate.note;
+  nowNote.classList.add('show');
+
+  if (estimate.available) {
+    nowToggle.disabled = false;
+    nowToggleLabel.classList.remove('unavailable');
+    nowToggleText.textContent = 'Show estimated now position';
+  }
+
+  return estimate;
+}
+
+function updateNowOverlay() {
+  clearNowOverlay();
+  if (!selected || !nowToggle.checked) return;
+
+  const estimate = estimatePresentPosition(selected);
+  nowNote.textContent = estimate.note;
+  nowNote.classList.add('show');
+  if (!estimate.available) return;
+
+  nowGroup.add(makeNowArrow(selected, estimate));
+}
+
+nowToggle.addEventListener('change', updateNowOverlay);
+
+function setSkyLocationStatus(text, { error = false } = {}) {
+  skyLocationStatus.textContent = text;
+  skyLocationStatus.style.color = error ? '#ffb5b5' : '';
+}
+
+function updateSkyOpenButton() {
+  skyOpenBtn.disabled = !(selected && observingLocation);
+}
+
+function setObservingLocation(location) {
+  observingLocation = location;
+  setSkyLocationStatus(location.label);
+  updateSkyOpenButton();
+}
+
+function formatLocationResult(result) {
+  return [result.name, result.admin1, result.country_code].filter(Boolean).join(', ');
+}
+
+async function findCityLocation() {
+  const query = skyCityInput.value.trim();
+  if (!query) {
+    setSkyLocationStatus('Enter a city first.', { error: true });
+    return;
+  }
+
+  skyCityBtn.disabled = true;
+  setSkyLocationStatus('Finding city...');
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Geocoding failed: ${response.status}`);
+    const data = await response.json();
+    const result = data.results?.[0];
+    if (!result) throw new Error('No matching city found.');
+
+    setObservingLocation({
+      lat: result.latitude,
+      lon: result.longitude,
+      timezone: result.timezone,
+      label: formatLocationResult(result),
+    });
+  } catch (err) {
+    console.error(err);
+    setSkyLocationStatus(err.message || 'Could not find that city.', { error: true });
+  } finally {
+    skyCityBtn.disabled = false;
+  }
+}
+
+function useBrowserLocation() {
+  if (!navigator.geolocation) {
+    setSkyLocationStatus('Browser location is not available.', { error: true });
+    return;
+  }
+
+  skyLocateBtn.disabled = true;
+  setSkyLocationStatus('Waiting for location...');
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      const { latitude, longitude } = position.coords;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      setObservingLocation({
+        lat: latitude,
+        lon: longitude,
+        timezone,
+        label: `Current location (${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°)`,
+      });
+      skyLocateBtn.disabled = false;
+    },
+    err => {
+      setSkyLocationStatus(err.message || 'Location permission was not granted.', { error: true });
+      skyLocateBtn.disabled = false;
+    },
+    { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 }
+  );
+}
+
+function currentSkyDate() {
+  return new Date(skyViewState.startTime.getTime() + Number(skyTime.value) * 60000);
+}
+
+function nightTrackColor(sunAlt) {
+  if (sunAlt > -0.833) return '#789fd4';
+  if (sunAlt > -6) return '#455783';
+  if (sunAlt > -12) return '#27315a';
+  if (sunAlt > -18) return '#121a38';
+  return '#030612';
+}
+
+function renderNightTrack(date) {
+  if (!skyViewState.location || !skyViewState.startTime) return;
+
+  const width = Math.max(280, skyNightTrack.clientWidth || 800);
+  const height = Math.max(24, skyNightTrack.clientHeight || 28);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (skyNightTrack.width !== Math.round(width * dpr) || skyNightTrack.height !== Math.round(height * dpr)) {
+    skyNightTrack.width = Math.round(width * dpr);
+    skyNightTrack.height = Math.round(height * dpr);
+  }
+
+  const ctx = skyNightTrack.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const maxMin = Number(skyTime.max);
+  for (let x = 0; x < width; x++) {
+    const minutes = (x / Math.max(1, width - 1)) * maxMin;
+    const sample = new Date(skyViewState.startTime.getTime() + minutes * 60000);
+    ctx.fillStyle = nightTrackColor(sunAltitude(sample, skyViewState.location));
+    ctx.fillRect(x, 0, 1, height);
+  }
+
+  const currentX = (Number(skyTime.value) / maxMin) * width;
+  ctx.fillStyle = 'rgba(255, 223, 135, 0.22)';
+  ctx.fillRect(Math.max(0, currentX - 8), 0, 16, height);
+  ctx.beginPath();
+  ctx.moveTo(currentX, 0);
+  ctx.lineTo(currentX, height);
+  ctx.strokeStyle = '#ffdf87';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const hourMs = 60 * 60000;
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 1;
+  for (let t = Math.ceil(skyViewState.startTime.getTime() / hourMs) * hourMs; t <= skyViewState.startTime.getTime() + maxMin * 60000; t += hourMs) {
+    const x = ((t - skyViewState.startTime.getTime()) / (maxMin * 60000)) * width;
+    ctx.beginPath();
+    ctx.moveTo(x, height - 6);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(0, 0, width, 1);
+  ctx.fillRect(0, height - 1, width, 1);
+}
+
+function showSkyObjectDetails(obj, horizontal = null, date = currentSkyDate()) {
+  if (!obj) {
+    skyDetailObject = null;
+    skyObjectCard.classList.remove('show');
+    skyObjectCard.innerHTML = '';
+    return;
+  }
+
+  const d = obj.data;
+  const meta = CATS[d.cat];
+  const h = horizontal || objectHorizontal(d, date, skyViewState.location);
+  skyDetailObject = obj;
+  skyObjectCard.innerHTML = `
+    <img src="${d.img}" alt="${d.name || `M${d.m}`}" referrerpolicy="no-referrer">
+    <span class="badge" style="background:${meta.color}">${meta.badge.toUpperCase()}</span>
+    <h3>M${d.m}${d.name ? ` · ${d.name}` : ''}</h3>
+    <div class="sub">${d.type} · ${d.const}</div>
+    <dl>
+      <dt>Altitude</dt><dd>${h.alt.toFixed(0)}°</dd>
+      <dt>Azimuth</dt><dd>${h.az.toFixed(0)}° ${azLabel(h.az)}</dd>
+      <dt>Distance</dt><dd>${fmtDistance(d.dist_kly)}</dd>
+      <dt>Magnitude</dt><dd>${d.mag.toFixed(1)}</dd>
+      <dt>Size</dt><dd>${d.size || '—'}</dd>
+      <dt>Position</dt><dd>${fmtRaDec(d.ra, d.dec)}</dd>
+    </dl>
+    <div class="note">${fmtLightTime(d.dist_kly)}</div>`;
+  const img = skyObjectCard.querySelector('img');
+  img.addEventListener('error', () => img.classList.add('hide'));
+  skyObjectCard.classList.add('show');
+}
+
+function skyTargetAt(clientX, clientY) {
+  const rect = skyCanvas.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  let best = null;
+  for (const target of skyHitTargets) {
+    const dist = Math.hypot(x - target.x, y - target.y);
+    if (dist <= target.hitRadius && (!best || dist < best.dist)) best = { ...target, dist };
+  }
+  return best;
+}
+
+function renderSkyChart() {
+  if (!skyViewState.obj || !skyViewState.location || !skyViewState.startTime) return;
+
+  const width = Math.max(320, skyCanvas.clientWidth || 800);
+  const height = Math.max(320, skyCanvas.clientHeight || 500);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (skyCanvas.width !== Math.round(width * dpr) || skyCanvas.height !== Math.round(height * dpr)) {
+    skyCanvas.width = Math.round(width * dpr);
+    skyCanvas.height = Math.round(height * dpr);
+  }
+
+  const ctx = skyCanvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const date = currentSkyDate();
+  const location = skyViewState.location;
+  const selectedObj = skyViewState.obj;
+  const selectedHorizontal = objectHorizontal(selectedObj.data, date, location);
+  const sunAlt = sunAltitude(date, location);
+  const radius = Math.max(110, Math.min(width, height) * 0.43);
+  const cx = width / 2;
+  const cy = height / 2;
+  skyHitTargets = [];
+
+  const skyGradient = ctx.createRadialGradient(cx, cy - radius * 0.18, 0, cx, cy, radius);
+  skyGradient.addColorStop(0, '#142447');
+  skyGradient.addColorStop(0.72, '#071022');
+  skyGradient.addColorStop(1, '#03050b');
+  ctx.fillStyle = '#04060c';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = skyGradient;
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+  const daylight = Math.max(0, Math.min(1, (sunAlt + 12) / 24));
+  if (daylight > 0) {
+    ctx.fillStyle = `rgba(105, 152, 210, ${daylight * 0.34})`;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+  }
+
+  for (const alt of [30, 60]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, ((90 - alt) / 90) * radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(190, 210, 255, 0.16)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  for (const az of [0, 45, 90, 135, 180, 225, 270, 315]) {
+    const a = degToRad(az);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + radius * Math.sin(a), cy - radius * Math.cos(a));
+    ctx.strokeStyle = az % 90 === 0 ? 'rgba(190, 210, 255, 0.18)' : 'rgba(190, 210, 255, 0.08)';
+    ctx.stroke();
+  }
+
+  const visible = [];
+  for (const obj of objects) {
+    const horizontal = objectHorizontal(obj.data, date, location);
+    if (horizontal.alt <= 0) continue;
+    const point = skyPoint(horizontal, cx, cy, radius);
+    if (point) visible.push({ obj, horizontal, point });
+  }
+
+  for (const item of visible) {
+    if (item.obj === selectedObj) continue;
+    const meta = CATS[item.obj.data.cat];
+    const size = THREE.MathUtils.clamp(2.1 + (8.5 - item.obj.data.mag) * 0.25, 1.8, 4.8);
+    ctx.beginPath();
+    ctx.arc(item.point.x, item.point.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = meta.color;
+    ctx.globalAlpha = 0.78;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const selectedPoint = skyPoint(selectedHorizontal, cx, cy, radius, { clamp: true });
+  const selectedVisible = selectedHorizontal.alt >= 0;
+  if (selectedPoint) {
+    ctx.beginPath();
+    ctx.arc(selectedPoint.x, selectedPoint.y, selectedVisible ? 9 : 7, 0, Math.PI * 2);
+    ctx.strokeStyle = selectedVisible ? '#ffdf87' : 'rgba(255, 160, 130, 0.8)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(selectedPoint.x, selectedPoint.y, 3.8, 0, Math.PI * 2);
+    ctx.fillStyle = selectedVisible ? '#ffdf87' : 'rgba(255, 160, 130, 0.8)';
+    ctx.fill();
+  }
+
+  for (const item of visible) {
+    skyHitTargets.push({
+      obj: item.obj,
+      horizontal: item.horizontal,
+      x: item.point.x,
+      y: item.point.y,
+      hitRadius: item.obj === selectedObj ? 14 : 11,
+    });
+  }
+
+  const nearbyLabels = visible
+    .filter(item => item.obj !== selectedObj)
+    .map(item => ({ ...item, sep: angularSeparationDeg(item.obj.data, selectedObj.data) }))
+    .filter(item => item.sep <= 55)
+    .sort((a, b) => a.sep - b.sep)
+    .slice(0, 8);
+
+  ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (const item of nearbyLabels) {
+    ctx.fillStyle = 'rgba(220, 232, 255, 0.78)';
+    ctx.fillText(`M${item.obj.data.m}`, item.point.x + 6, item.point.y - 6);
+  }
+
+  if (selectedPoint) {
+    ctx.font = '650 13px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = selectedVisible ? '#ffedbd' : '#ffb5a1';
+    ctx.fillText(`M${selectedObj.data.m}${selectedObj.data.name ? ` · ${selectedObj.data.name}` : ''}`, selectedPoint.x + 12, selectedPoint.y + 2);
+  }
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(210, 225, 255, 0.52)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.font = '650 13px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const compass = [
+    ['N', 0, 0, -1], ['E', 90, 1, 0], ['S', 180, 0, 1], ['W', 270, -1, 0],
+  ];
+  for (const [label, , dx, dy] of compass) {
+    ctx.fillStyle = 'rgba(220, 232, 255, 0.78)';
+    ctx.fillText(label, cx + dx * (radius + 18), cy + dy * (radius + 18));
+  }
+
+  skyTimeLabel.textContent = formatSkyTime(date, location);
+  const darkLabel = sunAlt <= -18 ? 'astronomical night' :
+    sunAlt <= SKY_MIN_DARK_SUN_ALT ? 'dark sky' :
+    sunAlt <= -6 ? 'twilight' : 'daylight';
+  const visibility = selectedVisible
+    ? `alt ${selectedHorizontal.alt.toFixed(0)}°, az ${selectedHorizontal.az.toFixed(0)}° ${azLabel(selectedHorizontal.az)}`
+    : `below horizon, az ${selectedHorizontal.az.toFixed(0)}° ${azLabel(selectedHorizontal.az)}`;
+  skyReadout.textContent = `${visibility}. ${visible.length} Messier objects above the horizon. ${darkLabel}.`;
+  renderNightTrack(date);
+  if (skyDetailObject) showSkyObjectDetails(skyDetailObject, null, date);
+}
+
+function openSkyView() {
+  if (!selected || !observingLocation) return;
+
+  const best = findBestViewingTime(selected.data, observingLocation);
+  skyViewState.obj = selected;
+  skyViewState.location = observingLocation;
+  skyViewState.startTime = new Date(best.date.getTime() - (SKY_SLIDER_SPAN_MIN / 2) * 60000);
+  skyTime.min = 0;
+  skyTime.max = SKY_SLIDER_SPAN_MIN;
+  skyTime.step = SKY_SCAN_STEP_MIN;
+  skyTime.value = SKY_SLIDER_SPAN_MIN / 2;
+  skyTitle.textContent = messierDisplayName(selected.data);
+  skySubtitle.textContent = observingLocation.label;
+  showSkyObjectDetails(null);
+  skyModal.classList.add('open');
+  controls.autoRotate = false;
+  renderSkyChart();
+}
+
+function closeSkyView() {
+  skyModal.classList.remove('open');
+  skyCanvas.classList.remove('hovering');
+  showSkyObjectDetails(null);
+}
+
+skyCityBtn.addEventListener('click', findCityLocation);
+skyCityInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') findCityLocation();
+});
+skyLocateBtn.addEventListener('click', useBrowserLocation);
+skyOpenBtn.addEventListener('click', openSkyView);
+skyClose.addEventListener('click', closeSkyView);
+skyTime.addEventListener('input', renderSkyChart);
+skyCanvas.addEventListener('pointermove', e => {
+  skyCanvas.classList.toggle('hovering', !!skyTargetAt(e.clientX, e.clientY));
+});
+skyCanvas.addEventListener('pointerleave', () => {
+  skyCanvas.classList.remove('hovering');
+});
+skyCanvas.addEventListener('click', e => {
+  const target = skyTargetAt(e.clientX, e.clientY);
+  if (target) showSkyObjectDetails(target.obj, target.horizontal);
+  else showSkyObjectDetails(null);
+});
+window.addEventListener('resize', () => {
+  if (skyModal.classList.contains('open')) renderSkyChart();
+});
+
+/* ---------- legend ---------- */
+
+const catVisible = Object.fromEntries(Object.keys(CATS).map(k => [k, true]));
+{
+  const legend = $('legend');
+  for (const [key, meta] of Object.entries(CATS)) {
+    const n = objects.filter(o => o.data.cat === key).length;
+    const label = document.createElement('label');
+    label.innerHTML = `<input type="checkbox" checked>
+      <span class="dot" style="background:${meta.color}"></span>
+      ${meta.label}<span class="count">${n}</span>`;
+    label.querySelector('input').addEventListener('change', e => {
+      catVisible[key] = e.target.checked;
+      label.classList.toggle('off', !e.target.checked);
+      for (const o of objects) if (o.data.cat === key) o.sprite.visible = e.target.checked;
+      if (selected && selected.data.cat === key && !e.target.checked) deselect();
+    });
+    legend.appendChild(label);
+  }
+
+  const skyHeader = document.createElement('h2');
+  skyHeader.className = 'section';
+  skyHeader.textContent = 'Sky layers';
+  legend.appendChild(skyHeader);
+
+  for (const [key, meta] of Object.entries(SKY_GROUPS)) {
+    const label = document.createElement('label');
+    label.classList.add('sky-option', 'off');
+    label.innerHTML = `<input type="checkbox">
+      <span class="line-swatch" style="--swatch-color:${meta.swatch}"></span>
+      ${meta.label}<span class="count"></span>`;
+    const input = label.querySelector('input');
+    const status = label.querySelector('.count');
+    input.addEventListener('change', () => toggleSkyGroup(key, input, label, status));
+    legend.appendChild(label);
+  }
+
+  boundaryLabel = document.createElement('label');
+  boundaryLabel.classList.add('sky-option', 'off');
+  boundaryLabel.innerHTML = `<input type="checkbox">
+    <span class="line-swatch dashed" style="--swatch-color:${SKY_BOUNDARY_LAYER.swatch}"></span>
+    ${SKY_BOUNDARY_LAYER.label}<span class="count"></span>`;
+  boundaryInput = boundaryLabel.querySelector('input');
+  boundaryStatus = boundaryLabel.querySelector('.count');
+  boundaryInput.addEventListener('change', () => toggleBoundaryLayer(boundaryInput, boundaryLabel, boundaryStatus));
+  legend.appendChild(boundaryLabel);
+}
+
+/* ---------- selection & camera flight ---------- */
+
+let selected = null;
+let flight = null;   // { t0, dur, camFrom, camTo, tgtFrom, tgtTo }
+
+function flyTo(targetPos, camDistance) {
+  const dir = camera.position.clone().sub(targetPos);
+  if (dir.lengthSq() < 1) dir.set(0, 0.4, 1);
+  dir.normalize().multiplyScalar(camDistance);
+  flight = {
+    t0: performance.now(), dur: 1200,
+    camFrom: camera.position.clone(), camTo: targetPos.clone().add(dir),
+    tgtFrom: controls.target.clone(), tgtTo: targetPos.clone(),
+  };
+}
+
+function select(obj, { fly = true } = {}) {
+  selected = obj;
+  controls.autoRotate = false;
+  selRing.visible = true;
+  selRing.position.copy(obj.pos);
+  fillPanel(obj.data);
+  panel.classList.add('open');
+  setNowControlForSelection(obj);
+  updateSkyOpenButton();
+  history.replaceState(null, '', '#m' + obj.data.m);
+  if (fly) flyTo(obj.pos, Math.max(110, obj.scale * 8));
+}
+
+function deselect() {
+  selected = null;
+  selRing.visible = false;
+  setNowControlForSelection(null);
+  updateSkyOpenButton();
+  closeSkyView();
+  panel.classList.remove('open');
+  history.replaceState(null, '', location.pathname);
+}
+
+$('closepanel').addEventListener('click', deselect);
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (skyModal.classList.contains('open')) closeSkyView();
+  else deselect();
+});
+
+$('resetview').addEventListener('click', () => {
+  deselect();
+  flyTo(new THREE.Vector3(0, 0, 0), HOME_POS.length());
+});
+
+const panelImg = document.getElementById('p-img');
+panelImg.addEventListener('error', () => { panelImg.style.visibility = 'hidden'; });
+panelImg.addEventListener('load', () => { panelImg.style.visibility = 'visible'; });
+
+function fillPanel(d) {
+  const meta = CATS[d.cat];
+  panelImg.style.visibility = 'hidden';
+  panelImg.src = d.img;
+  panelImg.alt = d.name || `M${d.m}`;
+  $('p-badge').textContent = meta.badge.toUpperCase();
+  $('p-badge').style.background = meta.color;
+  $('p-name').textContent = d.name || `Messier ${d.m}`;
+  $('p-desig').textContent = `M${d.m}` + (d.ngc && d.ngc !== '–' ? ` · ${d.ngc}` : '');
+  $('p-type').textContent = d.type;
+  $('p-dist').textContent = fmtDistance(d.dist_kly);
+  $('p-const').textContent = d.const;
+  $('p-mag').textContent = d.mag.toFixed(1);
+  $('p-size').textContent = d.size || '—';
+  $('p-radec').textContent = fmtRaDec(d.ra, d.dec);
+  $('p-light').textContent = fmtLightTime(d.dist_kly);
+  $('p-wiki').href = d.wiki;
+}
+
+/* ---------- search ---------- */
+
+function matches(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  return objects.filter(o => {
+    const d = o.data;
+    return (`m${d.m}` === q) || (`m${d.m}`).startsWith(q) || String(d.m) === q ||
+      d.name.toLowerCase().includes(q) || d.type.toLowerCase().includes(q) ||
+      d.const.toLowerCase().includes(q) || d.ngc.toLowerCase().includes(q);
+  }).slice(0, 8);
+}
+
+function renderSuggestions(list) {
+  sugBox.innerHTML = '';
+  if (!list.length) { sugBox.style.display = 'none'; return; }
+  for (const o of list) {
+    const d = o.data;
+    const div = document.createElement('div');
+    div.innerHTML = `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}
+      <div class="sub">${d.type} · ${d.const} · ${fmtDistance(d.dist_kly)}</div>`;
+    div.addEventListener('click', () => {
+      select(o);
+      sugBox.style.display = 'none';
+      searchBox.value = d.name || `M${d.m}`;
+    });
+    sugBox.appendChild(div);
+  }
+  sugBox.style.display = 'block';
+}
+
+searchBox.addEventListener('input', () => renderSuggestions(matches(searchBox.value)));
+searchBox.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const list = matches(searchBox.value);
+    if (list.length) {
+      select(list[0]);
+      sugBox.style.display = 'none';
+      searchBox.blur();
+    }
+  }
+});
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('#searchwrap')) sugBox.style.display = 'none';
+});
+
+/* ---------- picking ---------- */
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let hovered = null;
+let downAt = null;
+
+function pick(e) {
+  pointer.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(objectsGroup.children)
+    .filter(h => h.object.visible);
+  return hits.length ? objects.find(o => o.sprite === hits[0].object) : null;
+}
+
+canvas.addEventListener('pointermove', e => {
+  const hit = pick(e);
+  hovered = hit;
+  canvas.classList.toggle('hovering', !!hit);
+  if (hit) {
+    const d = hit.data;
+    tooltip.innerHTML = `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}
+      <div class="sub">${d.type} · ${fmtDistance(d.dist_kly)}</div>`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth - 250) + 'px';
+    tooltip.style.top = (e.clientY + 14) + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', e => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved > 5) return;                 // it was a drag, not a click
+  const hit = pick(e);
+  if (hit) select(hit);
+  else if (selected) deselect();
+});
+
+/* ---------- deep link ---------- */
+
+{
+  const m = location.hash.match(/^#m(\d+)$/i);
+  if (m) {
+    const obj = objects.find(o => o.data.m === Number(m[1]));
+    if (obj) select(obj, { fly: true });
+  }
+}
+
+/* ============================== render loop ============================== */
+
+const ease = t => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+
+  if (flight) {
+    const t = Math.min((now - flight.t0) / flight.dur, 1);
+    const k = ease(t);
+    camera.position.lerpVectors(flight.camFrom, flight.camTo, k);
+    controls.target.lerpVectors(flight.tgtFrom, flight.tgtTo, k);
+    if (t >= 1) flight = null;
+  }
+
+  if (selected) {
+    const pulse = 1 + 0.07 * Math.sin(now / 280);
+    const s = selected.scale * 1.55 * pulse;
+    selRing.scale.set(s, s, 1);
+  }
+  const sunPulse = 1 + 0.06 * Math.sin(now / 600);
+  sunSprite.scale.set(13 * sunPulse, 13 * sunPulse, 1);
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(animate);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// debug/automation handle
+window.__ATLAS = { objects, camera, select, deselect, skyGroupState, boundaryState, THREE };
+</script>
+</body>
+</html>
