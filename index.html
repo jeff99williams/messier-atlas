@@ -214,6 +214,12 @@
   }
   #panel dt { color: var(--text-dim); }
   #panel dd { text-align: right; }
+  dt.has-tip {
+    cursor: help;
+    text-decoration: underline dotted rgba(185, 198, 224, 0.5);
+    text-underline-offset: 3px;
+  }
+  dd[title], .tonight-row .mag[title] { cursor: help; }
   #panel .lighttime {
     margin-top: 14px; padding: 10px 12px; font-size: 12.5px;
     color: #b9c6e0; background: rgba(138, 180, 255, 0.08);
@@ -880,6 +886,97 @@ function moonDirEcl(orbit, jd) {
     orbit.p[2] * c + orbit.q[2] * s,
   ];
 }
+
+/* ---------- brightness: apparent & absolute magnitudes ---------- */
+
+// Absolute magnitude — how bright an object would look from 10 parsecs.
+const absoluteMag = (mag, distLy) => mag - 5 * Math.log10((distLy / 3.26156) / 10);
+
+function visibilityNote(m) {
+  if (m <= 6.5) return 'naked eye';
+  if (m <= 10) return 'binoculars';
+  if (m <= 13.5) return 'small telescope';
+  return 'large telescope';
+}
+
+const SATURN_POLE = (() => {   // ring-plane normal, equatorial J2000
+  const ra = degToRad(40.589), dec = degToRad(83.537);
+  return [Math.cos(dec) * Math.cos(ra), Math.cos(dec) * Math.sin(ra), Math.sin(dec)];
+})();
+
+// Comet total-magnitude parameters [M1, K1]: m = M1 + 5 log Δ + K1 log r.
+const COMET_MAG = { halley: [5.5, 8.0], encke: [11.5, 15.0], 'hale-bopp': [-1.3, 8.5] };
+
+// Satellite absolute magnitudes H (V mag at 1 AU from Sun and observer).
+const MOON_H = {
+  io: -1.68, europa: -1.41, ganymede: -2.09, callisto: -1.05,
+  titan: -1.28, triton: -1.24, charon: 0.9,
+};
+
+// Estimated apparent V magnitude of a solar-system body as seen from Earth
+// at a Julian date — distance plus phase. Planets follow the Mallama & Hilton
+// (2018) phase laws (Saturn the classic Almanac form with its real ring tilt);
+// spacecraft have no meaningful optical magnitude and return null.
+function apparentMag(d, jd) {
+  if (d.kind === 'craft') return null;
+  const e = planetHelioEcl(EARTH_KEPLER, jd);
+  const R = Math.hypot(e[0], e[1], e[2]);                       // Sun–Earth
+  if (d.kind === 'star') return -26.74 + 5 * Math.log10(R);     // the Sun
+
+  const g = geoEclVecOf(d, jd);
+  const delta = Math.hypot(g[0], g[1], g[2]);                   // Earth–body
+  const r = Math.hypot(g[0] + e[0], g[1] + e[1], g[2] + e[2]);  // Sun–body
+  const dist = 5 * Math.log10(r * delta);
+  const a = radToDeg(Math.acos(THREE.MathUtils.clamp(
+    (r * r + delta * delta - R * R) / (2 * r * delta), -1, 1)));  // phase angle
+
+  if (d.kind === 'comet') {
+    const [M1, K1] = COMET_MAG[d.slug];
+    return M1 + 5 * Math.log10(delta) + K1 * Math.log10(r);
+  }
+  if (d.kind === 'moon') {
+    if (d.slug === 'moon') return 0.23 + dist + 0.026 * a + 4e-9 * a ** 4;
+    return MOON_H[d.slug] + dist;   // phase is negligible for outer-planet moons
+  }
+  switch (d.slug) {
+    case 'mercury':
+      return -0.613 + dist + a * (6.3280e-2 + a * (-1.6336e-3 +
+        a * (3.3644e-5 + a * (-3.4265e-7 + a * (1.6893e-9 - 3.0334e-12 * a)))));
+    case 'venus':
+      return a <= 163.7
+        ? -4.384 + dist + a * (-1.044e-3 + a * (3.687e-4 + a * (-2.814e-6 + 8.938e-9 * a)))
+        : 236.05828 + dist + a * (-2.81914 + 8.39034e-3 * a);
+    case 'mars': return -1.601 + dist + a * (2.267e-2 - 1.302e-4 * a);
+    case 'jupiter': return -9.395 + dist + a * (-3.7e-4 + 6.16e-4 * a);
+    case 'saturn': {
+      const u = eclToEquatorial(g);   // ring opening from the line of sight vs pole
+      const sinB = Math.abs(
+        (u[0] * SATURN_POLE[0] + u[1] * SATURN_POLE[1] + u[2] * SATURN_POLE[2]) / delta);
+      return -8.88 + dist + 0.044 * a - 2.60 * sinB + 1.25 * sinB * sinB;
+    }
+    case 'uranus': return -7.11 + dist + a * (6.587e-3 + 1.045e-4 * a);
+    case 'neptune': return -7.0 + dist + a * (7.944e-3 + 9.617e-5 * a);
+    case 'pluto': return -0.8 + dist + 0.041 * a;
+  }
+  return null;
+}
+
+const fmtApparentMag = m => `mag ${m.toFixed(1)} · ${visibilityNote(m)}`;
+
+// Hover explanations for the magnitude rows — the scale runs backwards,
+// and the negative numbers confuse everyone at first.
+const MAG_TIPS = {
+  'Magnitude': 'How bright it looks from Earth (apparent magnitude). ' +
+    'The scale runs backwards: smaller numbers are brighter. Vega is 0, the faintest ' +
+    'naked-eye stars are about +6.5, and the very brightest objects go negative.',
+  'Absolute mag': 'True luminosity: the magnitude it would have if seen from a standard ' +
+    'distance of 10 parsecs (32.6 light-years). Smaller still means brighter, so the most ' +
+    'luminous objects are strongly negative — from that distance the Sun would be a dim +4.8.',
+  'Brightness': 'Estimated apparent magnitude for the simulated date, computed from real ' +
+    'distances and phase. Smaller numbers are brighter: Venus can reach −4.9, while about ' +
+    '+6.5 is the naked-eye limit under dark skies.',
+};
+const tipDt = label => `<dt class="has-tip" title="${MAG_TIPS[label]}">${label}</dt>`;
 
 function radecToHorizontal(raDeg, decDeg, date, location) {
   const lat = degToRad(location.lat);
@@ -1973,10 +2070,12 @@ const objects = window.MESSIER.map(d => {
   });
   const sprite = new THREE.Sprite(mat);
   const s = THREE.MathUtils.clamp(7 + (9.5 - d.mag) * 1.1, 6, 17);
+  const sAbs = THREE.MathUtils.clamp(
+    7 + (-3.5 - absoluteMag(d.mag, d.dist_kly * 1000)) * 0.55, 4, 22);
   sprite.scale.set(s, s, 1);
   sprite.position.copy(pos);
   objectsGroup.add(sprite);
-  const obj = { data: d, sprite, pos, scale: s };
+  const obj = { data: d, sprite, pos, scale: s, appScale: s, absScale: sAbs };
   sprite.userData.obj = obj;
   return obj;
 });
@@ -2358,6 +2457,7 @@ const starsBySlug = {};
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     const s = THREE.MathUtils.clamp(6.8 - d.mag * 0.85, 3.6, 8.5);
+    const sAbs = THREE.MathUtils.clamp(6.8 - absoluteMag(d.mag, d.dist_ly) * 0.45, 1.5, 12);
     sprite.scale.set(s, s, 1);
     sprite.position.copy(pos);
     starsGroup.add(sprite);
@@ -2366,10 +2466,22 @@ const starsBySlug = {};
     label.position.copy(pos).add(new THREE.Vector3(0, s * 0.5 + 1.9, 0));
     starsGroup.add(label);
 
-    const obj = { data: d, sprite, pos, scale: s, flyDist: 85 };
+    const obj = { data: d, sprite, label, pos, scale: s, appScale: s, absScale: sAbs, flyDist: 85 };
     sprite.userData.obj = obj;
     starObjects.push(obj);
     starsBySlug[d.slug] = obj;
+  }
+}
+
+// Resize the deep-sky and star sprites by intrinsic brightness (absolute
+// magnitude) instead of brightness as seen from Earth: red dwarfs shrink to
+// specks, supergiants and galaxies balloon.
+function setIntrinsicSizing(on) {
+  for (const o of [...objects, ...starObjects]) {
+    const s = on ? o.absScale : o.appScale;
+    o.scale = s;
+    o.sprite.scale.set(s, s, 1);
+    if (o.label) o.label.position.copy(o.pos).add(new THREE.Vector3(0, s * 0.5 + 1.9, 0));
   }
 }
 
@@ -2793,6 +2905,7 @@ function showSkyObjectDetails(obj, horizontal = null, date = null) {
 
   if (d.kind) {
     const rd = d.radecAt(date);
+    const mag = apparentMag(d, julianDate(date));
     skyObjectCard.innerHTML = `
       <img src="${d.img}" alt="${d.name}" referrerpolicy="no-referrer">
       <span class="badge" style="background:${d.color}">${SOLAR_KINDS[d.kind].badge.toUpperCase()}</span>
@@ -2802,6 +2915,7 @@ function showSkyObjectDetails(obj, horizontal = null, date = null) {
         <dt>Altitude</dt><dd>${h.alt.toFixed(0)}°</dd>
         <dt>Azimuth</dt><dd>${h.az.toFixed(0)}° ${azLabel(h.az)}</dd>
         <dt>From Earth</dt><dd>${fmtFromEarth(d, rd.rAU)}</dd>
+        ${mag === null ? '' : `${tipDt('Brightness')}<dd title="${MAG_TIPS['Brightness']}">${fmtApparentMag(mag)}</dd>`}
         <dt>Position</dt><dd>${fmtRaDec(rd.ra, rd.dec)}</dd>
       </dl>
       <div class="note">Light from ${d.name} reaches Earth in ${fmtLightSpan(rd.rAU * LIGHT_S_PER_AU)}.</div>`;
@@ -2821,7 +2935,7 @@ function showSkyObjectDetails(obj, horizontal = null, date = null) {
         <dt>Altitude</dt><dd>${h.alt.toFixed(0)}°</dd>
         <dt>Azimuth</dt><dd>${h.az.toFixed(0)}° ${azLabel(h.az)}</dd>
         <dt>Distance</dt><dd>${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly</dd>
-        <dt>Magnitude</dt><dd>${d.mag.toFixed(2)}</dd>
+        ${tipDt('Magnitude')}<dd title="${MAG_TIPS['Magnitude']}">${d.mag.toFixed(2)}</dd>
         <dt>Position</dt><dd>${fmtRaDec(d.ra, d.dec)}</dd>
       </dl>
       <div class="note">${fmtLightTime(d.dist_ly / 1000)}</div>`;
@@ -2841,7 +2955,7 @@ function showSkyObjectDetails(obj, horizontal = null, date = null) {
       <dt>Altitude</dt><dd>${h.alt.toFixed(0)}°</dd>
       <dt>Azimuth</dt><dd>${h.az.toFixed(0)}° ${azLabel(h.az)}</dd>
       <dt>Distance</dt><dd>${fmtDistance(d.dist_kly)}</dd>
-      <dt>Magnitude</dt><dd>${d.mag.toFixed(1)}</dd>
+      ${tipDt('Magnitude')}<dd title="${MAG_TIPS['Magnitude']}">${d.mag.toFixed(1)}</dd>
       <dt>Size</dt><dd>${d.size || '—'}</dd>
       <dt>Position</dt><dd>${fmtRaDec(d.ra, d.dec)}</dd>
     </dl>
@@ -2968,7 +3082,8 @@ function renderSkyChart() {
     const point = skyPoint(horizontal, cx, cy, radius);
     if (!point) continue;
     solarVisible.push({ obj, horizontal, point });
-    const size = obj.data.kind === 'star' ? 7 : obj.data.slug === 'moon' ? 5.5 : 3.6;
+    const size = obj.data.kind === 'star' ? 7 : obj.data.slug === 'moon' ? 5.5 :
+      THREE.MathUtils.clamp(3.8 - apparentMag(obj.data, julianDate(date)) * 0.45, 1.5, 5.4);
     ctx.beginPath();
     ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
     ctx.fillStyle = obj.data.color;
@@ -3163,6 +3278,19 @@ const catVisible = Object.fromEntries(Object.keys(CATS).map(k => [k, true]));
   });
   legend.appendChild(starsLabel);
 
+  const intrinsicLabel = document.createElement('label');
+  intrinsicLabel.classList.add('sky-option', 'off');
+  intrinsicLabel.title = 'Resize stars and deep-sky objects by absolute magnitude — ' +
+    'their true luminosity — instead of how bright they look from Earth.';
+  intrinsicLabel.innerHTML = `<input type="checkbox">
+    <span class="dot" style="background:#ffe9a8"></span>
+    True brightness sizing<span class="count"></span>`;
+  intrinsicLabel.querySelector('input').addEventListener('change', e => {
+    setIntrinsicSizing(e.target.checked);
+    intrinsicLabel.classList.toggle('off', !e.target.checked);
+  });
+  legend.appendChild(intrinsicLabel);
+
   const solarHeader = document.createElement('h2');
   solarHeader.className = 'section';
   solarHeader.textContent = 'Solar system';
@@ -3356,7 +3484,9 @@ const panelDl = $('p-dl');
 const nowControlBox = document.querySelector('#panel .now-control');
 
 function setPanelRows(rows) {
-  panelDl.innerHTML = rows.map(([t, v]) => `<dt>${t}</dt><dd>${v}</dd>`).join('');
+  panelDl.innerHTML = rows.map(([t, v]) => MAG_TIPS[t]
+    ? `${tipDt(t)}<dd title="${MAG_TIPS[t]}">${v}</dd>`
+    : `<dt>${t}</dt><dd>${v}</dd>`).join('');
 }
 
 function fmtFromEarth(d, rAU) {
@@ -3424,6 +3554,8 @@ function fillPanel(d) {
       if (d.kind === 'comet') rows.push(['Perihelion', `${d.perihelion_au} AU`]);
     }
     if (rd) rows.push(['From Earth', fmtFromEarth(d, rd.rAU)]);
+    const mag = apparentMag(d, solarJD);
+    if (mag !== null) rows.push(['Brightness', fmtApparentMag(mag)]);
     if (d.diameter_km) rows.push(['Diameter', `${d.diameter_km.toLocaleString()} km`]);
     if (rd) rows.push(['Position', fmtRaDec(rd.ra, rd.dec)]);
     setPanelRows(rows);
@@ -3436,6 +3568,7 @@ function fillPanel(d) {
       ['Distance', `${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} light-years`],
       ['Constellation', d.const],
       ['Magnitude', d.mag.toFixed(2)],
+      ['Absolute mag', absoluteMag(d.mag, d.dist_ly).toFixed(2)],
       ['Spectral type', d.spectral],
       ['Position', fmtRaDec(d.ra, d.dec)],
     ]);
@@ -3448,6 +3581,7 @@ function fillPanel(d) {
       ['Distance', fmtDistance(d.dist_kly)],
       ['Constellation', d.const],
       ['Magnitude', d.mag.toFixed(1)],
+      ['Absolute mag', absoluteMag(d.mag, d.dist_kly * 1000).toFixed(1)],
       ['Apparent size', d.size || '—'],
       ['Position', fmtRaDec(d.ra, d.dec)],
     ]);
@@ -3720,7 +3854,7 @@ function renderTonight() {
     row.className = 'tonight-row';
     row.innerHTML = `<span class="dot" style="background:${dotColor}"></span>
       <span class="trmain"><b>${title}</b><div class="sub">${sub}</div></span>
-      <span class="mag">${magText}</span>`;
+      <span class="mag"${magText ? ` title="${MAG_TIPS['Magnitude']}"` : ''}>${magText}</span>`;
     row.addEventListener('click', () => { closeTonight(); select(o); });
     tonightList.appendChild(row);
   };
@@ -3729,7 +3863,10 @@ function renderTonight() {
 
   if (solar.length) {
     addHeader('Solar system');
-    for (const { o, best } of solar) addRow(o, o.data.color, o.data.name, peakText(best), '');
+    for (const { o, best } of solar) {
+      const mag = apparentMag(o.data, julianDate(best.date));
+      addRow(o, o.data.color, o.data.name, peakText(best), `mag ${mag.toFixed(1)}`);
+    }
   }
   if (deep.length) {
     addHeader('Deep sky');
@@ -3870,6 +4007,7 @@ window.__ATLAS = {
   camera, controls, select, deselect, skyGroupState, boundaryState, THREE,
   galacticOutlineGroup, warpEnterpriseGroup, WARP_TARGETS, setWarpEnterpriseTarget,
   setSolarJD, getSolarJD: () => solarJD, setTdPlaying, openTonight,
+  apparentMag, absoluteMag, setIntrinsicSizing,
 };
 </script>
 </body>

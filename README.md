@@ -18,8 +18,16 @@ pole in the direction of the Virgo Cluster.
 
 - Rotate (drag), zoom (scroll, toward cursor), pan (right-drag)
 - Hover any object for a quick tooltip; click it to fly the camera there and
-  open an info panel with photo, type, distance, constellation, magnitude,
-  apparent size, position, and a link to its Wikipedia article
+  open an info panel with photo, type, distance, constellation, apparent and
+  absolute magnitude, apparent size, position, and a link to its Wikipedia
+  article
+- Solar-system bodies show an estimated brightness for the simulated date
+  (Mallama & Hilton planetary phase laws, Saturn's real ring tilt, lunar
+  phase, comet brightness curves) in the info panel, sky chart, and Tonight
+  list — scrub time to watch Mars brighten toward opposition
+- A "True brightness sizing" legend toggle resizes stars and deep-sky objects
+  by absolute magnitude instead of how bright they look from Earth — Sirius
+  shrinks to an ordinary star while Rigel, Deneb, and the galaxies balloon
 - Search by Messier number, common name, type, NGC number, or constellation
 - Legend toggles to show/hide categories (galaxies, globulars, open clusters…)
 - Optional labeled zodiac/rest constellation overlays and IAU boundaries for sky orientation
