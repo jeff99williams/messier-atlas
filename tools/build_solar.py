@@ -60,15 +60,15 @@ KEPLER = {
 # name, slug, kind, wiki title, color, sprite scale, fly-to distance,
 # diameter (km), orbital period (display string)
 PLANETS = [
-    ("Mercury", "mercury", "planet", "Mercury (planet)", "#b8b5ad", 0.55, 5, 4879,   "88.0 days"),
-    ("Venus",   "venus",   "planet", "Venus",            "#e8cda2", 0.80, 5, 12104,  "224.7 days"),
-    ("Earth",   "earth",   "planet", "Earth",            "#6ea8ff", 0.85, 5, 12742,  "365.25 days"),
-    ("Mars",    "mars",    "planet", "Mars",             "#ff8e63", 0.65, 5, 6779,   "687.0 days"),
-    ("Jupiter", "jupiter", "planet", "Jupiter",          "#e8b582", 1.50, 7, 139820, "11.86 years"),
-    ("Saturn",  "saturn",  "planet", "Saturn",           "#f2d49b", 1.35, 7, 116460, "29.45 years"),
-    ("Uranus",  "uranus",  "planet", "Uranus",           "#9fe3e3", 1.05, 6, 50724,  "84.0 years"),
-    ("Neptune", "neptune", "planet", "Neptune",          "#6f96ff", 1.05, 6, 49244,  "164.8 years"),
-    ("Pluto",   "pluto",   "dwarf",  "Pluto",            "#d8c8c0", 0.50, 4, 2377,   "247.9 years"),
+    ("Mercury", "mercury", "planet", "Mercury (planet)", "#b8b5ad", 0.20, 1.8, 4879,   "88.0 days"),
+    ("Venus",   "venus",   "planet", "Venus",            "#e8cda2", 0.28, 1.8, 12104,  "224.7 days"),
+    ("Earth",   "earth",   "planet", "Earth",            "#6ea8ff", 0.30, 1.8, 12742,  "365.25 days"),
+    ("Mars",    "mars",    "planet", "Mars",             "#ff8e63", 0.24, 1.8, 6779,   "687.0 days"),
+    ("Jupiter", "jupiter", "planet", "Jupiter",          "#e8b582", 0.52, 2.6, 139820, "11.86 years"),
+    ("Saturn",  "saturn",  "planet", "Saturn",           "#f2d49b", 0.46, 2.6, 116460, "29.45 years"),
+    ("Uranus",  "uranus",  "planet", "Uranus",           "#9fe3e3", 0.36, 2.2, 50724,  "84.0 years"),
+    ("Neptune", "neptune", "planet", "Neptune",          "#6f96ff", 0.36, 2.2, 49244,  "164.8 years"),
+    ("Pluto",   "pluto",   "dwarf",  "Pluto",            "#d8c8c0", 0.18, 1.5, 2377,   "247.9 years"),
 ]
 
 # name, slug, parent slug, wiki title, color, sprite scale, scene offset from
@@ -76,14 +76,14 @@ PLANETS = [
 # Horizons target id, Horizons center  (Earth's Moon uses an in-browser
 # series instead of a baked basis, so it has no Horizons ids)
 MOONS = [
-    ("Moon",     "moon",     "earth",   "Moon",            "#d9dde6", 0.40, 0.70, 3475,   384400, 27.321661, None, None),
-    ("Io",       "io",       "jupiter", "Io (moon)",       "#ffd966", 0.32, 0.62, 3643,   421700, 1.769138, "501", "500@599"),
-    ("Europa",   "europa",   "jupiter", "Europa (moon)",   "#e8e0cf", 0.30, 0.84, 3122,   671034, 3.551181, "502", "500@599"),
-    ("Ganymede", "ganymede", "jupiter", "Ganymede (moon)", "#a89f91", 0.36, 1.06, 5268,   1070412, 7.154553, "503", "500@599"),
-    ("Callisto", "callisto", "jupiter", "Callisto (moon)", "#8d8678", 0.34, 1.30, 4821,   1882709, 16.689017, "504", "500@599"),
-    ("Titan",    "titan",    "saturn",  "Titan (moon)",    "#e8b45e", 0.36, 0.80, 5150,   1221870, 15.945421, "606", "500@699"),
-    ("Triton",   "triton",   "neptune", "Triton (moon)",   "#ecd9d0", 0.32, 0.70, 2707,   354759, 5.876854, "801", "500@899"),
-    ("Charon",   "charon",   "pluto",   "Charon (moon)",   "#c0b8b4", 0.28, 0.55, 1212,   19591, 6.387221, "901", "500@999"),
+    ("Moon",     "moon",     "earth",   "Moon",            "#d9dde6", 0.15, 0.26, 3475,   384400, 27.321661, None, None),
+    ("Io",       "io",       "jupiter", "Io (moon)",       "#ffd966", 0.12, 0.24, 3643,   421700, 1.769138, "501", "500@599"),
+    ("Europa",   "europa",   "jupiter", "Europa (moon)",   "#e8e0cf", 0.11, 0.32, 3122,   671034, 3.551181, "502", "500@599"),
+    ("Ganymede", "ganymede", "jupiter", "Ganymede (moon)", "#a89f91", 0.14, 0.40, 5268,   1070412, 7.154553, "503", "500@599"),
+    ("Callisto", "callisto", "jupiter", "Callisto (moon)", "#8d8678", 0.13, 0.50, 4821,   1882709, 16.689017, "504", "500@599"),
+    ("Titan",    "titan",    "saturn",  "Titan (moon)",    "#e8b45e", 0.14, 0.30, 5150,   1221870, 15.945421, "606", "500@699"),
+    ("Triton",   "triton",   "neptune", "Triton (moon)",   "#ecd9d0", 0.12, 0.26, 2707,   354759, 5.876854, "801", "500@899"),
+    ("Charon",   "charon",   "pluto",   "Charon (moon)",   "#c0b8b4", 0.10, 0.20, 1212,   19591, 6.387221, "901", "500@999"),
 ]
 
 THUMB_BUCKETS = (500, 330, 250)

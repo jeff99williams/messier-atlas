@@ -397,12 +397,12 @@ const SKY_MIN_DARK_SUN_ALT = -12;
 const AU_KM = 149597870.7;
 const LIGHT_S_PER_AU = 499.005;
 const EARTH_RADIUS_KM = 6378.14;  // Schlyter's lunar elements are in equatorial Earth radii
-const SOLAR_SCALE = 10;           // scene units per decade of AU in the inner zone
+const SOLAR_SCALE = 4;            // scene units per decade of AU in the inner zone
 const SOLAR_BASE_AU = 0.1;        // heliocentric distance that maps to scene radius 0
-const SOLAR_FADE_NEAR = 70;       // camera radius where solar overlays are fully visible
-const SOLAR_FADE_FAR = 230;       // ...and fully faded out
-const MOON_LABEL_NEAR = 7;        // camera-to-target distance where moon labels appear
-const MOON_LABEL_FAR = 18;
+const SOLAR_FADE_NEAR = 30;       // camera radius where solar overlays are fully visible
+const SOLAR_FADE_FAR = 110;       // ...and fully faded out
+const MOON_LABEL_NEAR = 2.5;      // camera-to-target distance where moon labels appear
+const MOON_LABEL_FAR = 7;
 const OBLIQUITY_DEG = 23.43928;
 
 const CATS = {
@@ -1028,14 +1028,14 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x04060c);
 
-const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 12000);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.15, 12000);
 const HOME_POS = new THREE.Vector3(230, 290, 560);
 camera.position.copy(HOME_POS);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
-controls.minDistance = 1.3;
+controls.minDistance = 0.45;
 controls.maxDistance = 1600;
 controls.zoomToCursor = true;
 controls.autoRotate = true;
@@ -1203,7 +1203,7 @@ function addSolarOverlayLine(points, color, opacity, { loop = false } = {}) {
 
 const sunObj = {
   data: window.SOLAR.sun,
-  sprite: sunSprite, pos: new THREE.Vector3(0, 0, 0), scale: 2.4, flyDist: 60,
+  sprite: sunSprite, pos: new THREE.Vector3(0, 0, 0), scale: 0.9, flyDist: 24,
 };
 sunSprite.userData.obj = sunObj;
 solarObjects.push(sunObj);
@@ -1222,8 +1222,8 @@ for (const d of window.SOLAR.planets) {
   sprite.position.copy(pos);
   planetsGroup.add(sprite);
 
-  const label = makeTextSprite(d.name, { size: 22, color: '#dbe6f8', weight: 600, opacity: 0.92, unit: 0.015 });
-  label.position.copy(pos).add(new THREE.Vector3(0, d.scale * 0.7 + 0.3, 0));
+  const label = makeTextSprite(d.name, { size: 22, color: '#dbe6f8', weight: 600, opacity: 0.92, unit: 0.0072 });
+  label.position.copy(pos).add(new THREE.Vector3(0, d.scale * 0.7 + 0.13, 0));
   solarFadeMats.push({ mat: label.material, base: 0.92 });
   solarOverlayGroup.add(label);
 
@@ -1273,12 +1273,12 @@ for (const d of window.SOLAR.moons) {
   solarFadeMats.push({ mat: circleMat, base: 0.3 });
   moonsGroup.add(new THREE.LineLoop(circleGeo, circleMat));
 
-  const label = makeTextSprite(d.name, { size: 18, color: '#c4d0e8', weight: 600, opacity: 0.9, unit: 0.0085 });
-  label.position.copy(pos).add(new THREE.Vector3(0, d.scale * 0.7 + 0.12, 0));
+  const label = makeTextSprite(d.name, { size: 18, color: '#c4d0e8', weight: 600, opacity: 0.9, unit: 0.0042 });
+  label.position.copy(pos).add(new THREE.Vector3(0, d.scale * 0.7 + 0.05, 0));
   moonLabelFadeMats.push({ mat: label.material, base: 0.9 });
   moonsGroup.add(label);
 
-  const obj = { data: d, sprite, pos, scale: d.scale, flyDist: 2.2 };
+  const obj = { data: d, sprite, pos, scale: d.scale, flyDist: 0.85 };
   sprite.userData.obj = obj;
   solarObjects.push(obj);
   solarBySlug[d.slug] = obj;
@@ -1293,8 +1293,8 @@ for (const [au, text] of [[1, '1 AU'], [10, '10 AU']]) {
     pts.push(eclVecToScene([Math.cos(a), Math.sin(a), 0], r));
   }
   addSolarOverlayLine(pts, 0x4a5a85, 0.5);
-  const tag = makeTextSprite(text, { size: 22, color: '#8ea3cc', unit: 0.02 });
-  tag.position.copy(eclVecToScene([0, -1, 0], r)).add(new THREE.Vector3(0, 0.35, 0));
+  const tag = makeTextSprite(text, { size: 22, color: '#8ea3cc', unit: 0.0095 });
+  tag.position.copy(eclVecToScene([0, -1, 0], r)).add(new THREE.Vector3(0, 0.15, 0));
   solarFadeMats.push({ mat: tag.material, base: 1 });
   solarOverlayGroup.add(tag);
 }
@@ -2292,7 +2292,7 @@ function pick(e) {
   if (!hits.length) return null;
   // moons sit inside their planet's larger glow quad — prefer them on near-ties
   for (const h of hits) {
-    if (h.object.userData.obj.data.kind === 'moon' && h.distance - hits[0].distance < 1.5) {
+    if (h.object.userData.obj.data.kind === 'moon' && h.distance - hits[0].distance < 0.6) {
       return h.object.userData.obj;
     }
   }
@@ -2375,7 +2375,7 @@ function animate(now) {
   sunLabel.material.opacity = solarT;
 
   const sunPulse = 1 + 0.06 * Math.sin(now / 600);
-  const sunSize = 13 * THREE.MathUtils.lerp(0.14, 1, solarT) * sunPulse;
+  const sunSize = 13 * THREE.MathUtils.lerp(0.055, 1, solarT) * sunPulse;
   sunSprite.scale.set(sunSize, sunSize, 1);
 
   controls.update();
