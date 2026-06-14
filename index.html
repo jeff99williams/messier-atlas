@@ -891,6 +891,24 @@ function moonDirEcl(orbit, jd) {
 
 // Absolute magnitude — how bright an object would look from 10 parsecs.
 const absoluteMag = (mag, distLy) => mag - 5 * Math.log10((distLy / 3.26156) / 10);
+const SUN_ABSOLUTE_MAG = 4.83;
+const sunBrightnessMultiple = absMag => 10 ** (0.4 * (SUN_ABSOLUTE_MAG - absMag));
+
+function fmtSunMultiple(x) {
+  if (!Number.isFinite(x) || x <= 0) return '—';
+  if (x >= 1e9) return `${(x / 1e9).toFixed(x >= 1e10 ? 0 : 1)}B x Sun`;
+  if (x >= 1e6) return `${(x / 1e6).toFixed(x >= 1e7 ? 0 : 1)}M x Sun`;
+  if (x >= 1e4) return `${Math.round(x).toLocaleString()}x Sun`;
+  if (x >= 100) return `${x.toFixed(0)}x Sun`;
+  if (x >= 10) return `${x.toFixed(1)}x Sun`;
+  if (x >= 0.00001) return `${x.toPrecision(2)}x Sun`;
+  return `${x.toExponential(1)}x Sun`;
+}
+
+function fmtAbsoluteMag(mag, distLy, digits = 2) {
+  const absMag = absoluteMag(mag, distLy);
+  return `${absMag.toFixed(digits)} · ${fmtSunMultiple(sunBrightnessMultiple(absMag))}`;
+}
 
 function visibilityNote(m) {
   if (m <= 6.5) return 'naked eye';
@@ -971,7 +989,8 @@ const MAG_TIPS = {
     'naked-eye stars are about +6.5, and the very brightest objects go negative.',
   'Absolute mag': 'True luminosity: the magnitude it would have if seen from a standard ' +
     'distance of 10 parsecs (32.6 light-years). Smaller still means brighter, so the most ' +
-    'luminous objects are strongly negative — from that distance the Sun would be a dim +4.8.',
+    'luminous objects are strongly negative — from that distance the Sun would be a dim +4.8. ' +
+    'The x Sun value compares visual luminosity with the Sun, where the Sun is 1x.',
   'Brightness': 'Estimated apparent magnitude for the simulated date, computed from real ' +
     'distances and phase. Smaller numbers are brighter: Venus can reach −4.9, while about ' +
     '+6.5 is the naked-eye limit under dark skies.',
@@ -3568,7 +3587,7 @@ function fillPanel(d) {
       ['Distance', `${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} light-years`],
       ['Constellation', d.const],
       ['Magnitude', d.mag.toFixed(2)],
-      ['Absolute mag', absoluteMag(d.mag, d.dist_ly).toFixed(2)],
+      ['Absolute mag', fmtAbsoluteMag(d.mag, d.dist_ly, 2)],
       ['Spectral type', d.spectral],
       ['Position', fmtRaDec(d.ra, d.dec)],
     ]);
@@ -3581,7 +3600,7 @@ function fillPanel(d) {
       ['Distance', fmtDistance(d.dist_kly)],
       ['Constellation', d.const],
       ['Magnitude', d.mag.toFixed(1)],
-      ['Absolute mag', absoluteMag(d.mag, d.dist_kly * 1000).toFixed(1)],
+      ['Absolute mag', fmtAbsoluteMag(d.mag, d.dist_kly * 1000, 1)],
       ['Apparent size', d.size || '—'],
       ['Position', fmtRaDec(d.ra, d.dec)],
     ]);

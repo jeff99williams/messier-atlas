@@ -19,8 +19,8 @@ pole in the direction of the Virgo Cluster.
 - Rotate (drag), zoom (scroll, toward cursor), pan (right-drag)
 - Hover any object for a quick tooltip; click it to fly the camera there and
   open an info panel with photo, type, distance, constellation, apparent and
-  absolute magnitude, apparent size, position, and a link to its Wikipedia
-  article
+  absolute magnitude, a brightness multiple vs the Sun, apparent size,
+  position, and a link to its Wikipedia article
 - Solar-system bodies show an estimated brightness for the simulated date
   (Mallama & Hilton planetary phase laws, Saturn's real ring tilt, lunar
   phase, comet brightness curves) in the info panel, sky chart, and Tonight
