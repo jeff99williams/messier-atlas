@@ -29,6 +29,9 @@ pole in the direction of the Virgo Cluster.
   by absolute magnitude instead of how bright they look from Earth — Sirius
   shrinks to an ordinary star while Rigel, Deneb, and the galaxies balloon
 - Search by Messier number, common name, type, NGC number, or constellation
+- A 2026 total solar eclipse mode with NASA GSFC path data, Sun-side and
+  side-of-Sun camera views, animated umbra, totality spot presets, and a
+  labelled surface-totality view
 - Legend toggles to show/hide categories (galaxies, globulars, open clusters…)
 - Optional labeled zodiac/rest constellation overlays and IAU boundaries for sky orientation
 - Selected galaxies can show a present-day estimate arrow based on simple Hubble flow
@@ -99,6 +102,11 @@ and phase are baked from a JPL Horizons state vector at J2000
 Moon separations from their planets are exaggerated for visibility — the
 orbital phase direction is real, and the panels say so.
 
+`data/eclipse2026.js` holds the central-line path for the August 12, 2026 total
+solar eclipse from Fred Espenak / NASA GSFC. The eclipse mode uses those
+coordinates and timings for the moving shadow and path labels; the shadow disk
+is enlarged visually so it can be read on the log-compressed atlas.
+
 ## Files
 
 | Path                  | Purpose                                          |
@@ -106,6 +114,7 @@ orbital phase direction is real, and the panels say so.
 | `index.html`          | The whole app: scene, UI, styles, logic          |
 | `data/messier.js`     | Generated catalogue (`window.MESSIER = […]`)     |
 | `data/solar.js`       | Generated solar system (`window.SOLAR = {…}`)    |
+| `data/eclipse2026.js` | 2026 total solar eclipse path and location presets |
 | `tools/build_data.py` | Regenerates `data/messier.js` from Wikipedia     |
 | `tools/build_solar.py`| Regenerates `data/solar.js` (Wikipedia + JPL)    |
 

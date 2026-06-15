@@ -58,18 +58,26 @@
   #suggestions div { padding: 8px 12px; cursor: pointer; font-size: 13px; }
   #suggestions div:hover, #suggestions div.active { background: rgba(138, 180, 255, 0.14); }
   #suggestions .sub { color: var(--text-dim); font-size: 11px; }
-  #resetview, #tonightbtn {
+  #resetview, #tonightbtn, #eclipsebtn {
     margin-top: 8px; width: 100%; padding: 7px 0;
     background: transparent; border: 1px solid var(--panel-border);
     border-radius: 8px; color: var(--text-dim);
     font-size: 12px; cursor: pointer;
   }
-  #resetview:hover, #tonightbtn:hover { color: var(--text); border-color: rgba(138, 180, 255, 0.4); }
+  #resetview:hover, #tonightbtn:hover, #eclipsebtn:hover { color: var(--text); border-color: rgba(138, 180, 255, 0.4); }
   #tonightbtn {
     color: var(--accent); border-color: rgba(138, 180, 255, 0.3);
     background: rgba(138, 180, 255, 0.08);
   }
   #tonightbtn:hover { color: var(--accent); background: rgba(138, 180, 255, 0.16); }
+  #eclipsebtn {
+    color: #ffdf87; border-color: rgba(255, 207, 112, 0.35);
+    background: rgba(255, 207, 112, 0.08);
+  }
+  #eclipsebtn.active, #eclipsebtn:hover {
+    color: #ffebbd; border-color: rgba(255, 207, 112, 0.58);
+    background: rgba(255, 207, 112, 0.15);
+  }
 
   /* ---------- legend ---------- */
   #legend { left: 16px; bottom: 16px; padding: 12px 16px; }
@@ -150,6 +158,93 @@
   #td-slider { flex: 1; min-width: 60px; accent-color: var(--accent); }
   #td-date { font-size: 12.5px; color: var(--text); white-space: nowrap; min-width: 88px; text-align: right; }
   #td-date.shifted { color: #ffdf87; }
+
+  /* ---------- eclipse panel ---------- */
+  #eclipse-panel {
+    top: 16px; left: 16px; width: 360px; padding: 13px 15px 15px;
+    z-index: 45; display: none;
+  }
+  #eclipse-panel.open { display: block; }
+  #eclipse-panel h2 { font-size: 16px; font-weight: 650; line-height: 1.25; }
+  #eclipse-panel .sub { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+  #eclipse-panel .readout {
+    margin-top: 10px; padding: 9px 10px;
+    border: 1px solid rgba(255, 207, 112, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 207, 112, 0.07);
+    color: #ffe7ad; font-size: 12.5px;
+  }
+  #eclipse-panel .muted { color: var(--text-dim); }
+  .eclipse-row { margin-top: 11px; }
+  .eclipse-row .section-label { margin-bottom: 6px; }
+  .eclipse-buttons {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .eclipse-buttons.location-buttons { grid-template-columns: repeat(2, 1fr); }
+  .eclipse-buttons button, #eclipse-play, #eclipse-close {
+    min-width: 0; padding: 7px 8px;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    background: rgba(138, 180, 255, 0.08);
+    color: var(--text); font-size: 12px; cursor: pointer;
+    white-space: nowrap;
+  }
+  .eclipse-buttons button:hover, #eclipse-play:hover, #eclipse-close:hover {
+    border-color: rgba(255, 207, 112, 0.44);
+    background: rgba(255, 207, 112, 0.12);
+  }
+  .eclipse-buttons button.active {
+    color: #04060c;
+    border-color: rgba(255, 223, 135, 0.9);
+    background: #ffdf87;
+  }
+  .eclipse-timeline {
+    display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center;
+  }
+  #eclipse-slider {
+    width: 100%;
+    accent-color: #ffdf87;
+  }
+  #eclipse-close {
+    width: 100%; margin-top: 11px; color: var(--text-dim);
+    background: transparent;
+  }
+  #eclipse-surface-sky {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(38vmin, 330px); aspect-ratio: 1;
+    z-index: 34; display: none; pointer-events: none;
+  }
+  #eclipse-surface-sky.show { display: block; }
+  #eclipse-surface-sky .surface-sun {
+    position: absolute; inset: 12%;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 245, 0.96) 0 3%, rgba(255, 238, 168, 0.9) 4% 10%, rgba(255, 183, 88, 0.22) 24%, rgba(255, 183, 88, 0) 62%),
+      radial-gradient(circle at 50% 50%, rgba(255, 226, 130, 0.8), rgba(255, 226, 130, 0) 58%);
+    filter: drop-shadow(0 0 18px rgba(255, 215, 120, 0.8));
+  }
+  #eclipse-surface-sky .surface-moon {
+    position: absolute; inset: 28%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 42% 36%, #1d2028 0%, #03040a 56%, #000 100%);
+    box-shadow:
+      0 0 0 1px rgba(255, 244, 200, 0.24),
+      0 0 18px 4px rgba(255, 234, 160, 0.55),
+      0 0 48px 15px rgba(255, 207, 112, 0.16);
+  }
+  #eclipse-surface-sky .surface-label {
+    position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: max-content; max-width: min(320px, 80vw);
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 207, 112, 0.26);
+    border-radius: 8px;
+    background: rgba(8, 12, 22, 0.72);
+    color: #ffefc8;
+    font-size: 12px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
 
   /* ---------- tonight panel ---------- */
   #tonight-modal {
@@ -376,6 +471,10 @@
     #timedeck { left: 12px; right: 12px; bottom: 12px; transform: none; width: auto; }
     #timedeck.show ~ #legend, #legend.lifted { bottom: 88px; }
     #tonight-modal { top: auto; left: 16px; right: 16px; width: auto; max-height: 62vh; }
+    #eclipse-panel { left: 12px; right: 12px; top: auto; bottom: 94px; width: auto; }
+    .eclipse-buttons { grid-template-columns: 1fr; }
+    .eclipse-buttons.location-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #eclipse-surface-sky { width: min(58vmin, 280px); top: 42%; }
   }
 </style>
 </head>
@@ -394,6 +493,7 @@
     <div id="suggestions"></div>
   </div>
   <button id="tonightbtn">Tonight's best sky ✨</button>
+  <button id="eclipsebtn">2026 total eclipse</button>
   <button id="resetview">Reset view</button>
 </div>
 
@@ -409,6 +509,38 @@
   <input id="td-slider" type="range">
   <span id="td-date"></span>
   <button id="td-now" title="Jump back to today">Now</button>
+</div>
+
+<div id="eclipse-panel" class="overlay">
+  <h2>2026 total solar eclipse</h2>
+  <div class="sub">Moon shadow across Earth, August 12, 2026 UTC</div>
+  <div class="readout">
+    <div id="eclipse-time-label"></div>
+    <div id="eclipse-place-label" class="muted"></div>
+  </div>
+  <div class="eclipse-row">
+    <label class="section-label">View</label>
+    <div class="eclipse-buttons" id="eclipse-view-buttons">
+      <button data-view="sun">From Sun</button>
+      <button data-view="side">Beside Sun</button>
+      <button data-view="surface">Totality Spot</button>
+    </div>
+  </div>
+  <div class="eclipse-row">
+    <label class="section-label">Totality spot</label>
+    <div class="eclipse-buttons location-buttons" id="eclipse-location-buttons"></div>
+  </div>
+  <div class="eclipse-row eclipse-timeline">
+    <button id="eclipse-play">&#9654;</button>
+    <input id="eclipse-slider" type="range" min="0" max="1000" step="1" value="520">
+  </div>
+  <button id="eclipse-close">Leave eclipse mode</button>
+</div>
+
+<div id="eclipse-surface-sky">
+  <div class="surface-sun"></div>
+  <div class="surface-moon"></div>
+  <div class="surface-label" id="eclipse-surface-label"></div>
 </div>
 
 <div id="tooltip"></div>
@@ -484,6 +616,7 @@
 
 <script src="data/messier.js"></script>
 <script src="data/solar.js"></script>
+<script src="data/eclipse2026.js"></script>
 <script src="data/extras.js"></script>
 
 <script type="importmap">
@@ -525,6 +658,11 @@ const SOLAR_FADE_FAR = 110;       // ...and fully faded out
 const MOON_LABEL_NEAR = 2.5;      // camera-to-target distance where moon labels appear
 const MOON_LABEL_FAR = 7;
 const OBLIQUITY_DEG = 23.43928;
+const ECLIPSE_EARTH_RADIUS = 0.72;
+const ECLIPSE_MOON_DISTANCE = 1.62;
+const ECLIPSE_MOON_RADIUS = 0.18;
+const ECLIPSE_SHADOW_RADIUS = 0.105;  // stylized, larger than the real umbra for readability
+const ECLIPSE_PLAY_MIN_PER_SEC = 7.5;
 
 const CATS = {
   galaxy:    { label: 'Galaxies',          badge: 'Galaxy',           color: '#b18cff' },
@@ -746,6 +884,59 @@ function sunRaDec(date) {
     ra: normDeg(radToDeg(Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda)))),
     dec: radToDeg(Math.asin(Math.sin(epsilon) * Math.sin(lambda))),
   };
+}
+
+function equatorialVectorToScene(v, radius = 1) {
+  return radecToScene(vecRaDec(v).ra, vecRaDec(v).dec, radius);
+}
+
+function parseEclipseCoord(text) {
+  const m = String(text).trim().match(/^(\d+)\s+(\d+(?:\.\d+)?)([NSEW])$/i);
+  if (!m) return null;
+  const value = Number(m[1]) + Number(m[2]) / 60;
+  return /[SW]/i.test(m[3]) ? -value : value;
+}
+
+function eclipseUtcDate(timeText) {
+  const [h, m, s = '0'] = String(timeText).split(':');
+  const seconds = Number(s);
+  return new Date(Date.UTC(
+    2026, 7, 12,
+    Number(h), Number(m),
+    Math.floor(seconds),
+    Math.round((seconds % 1) * 1000)
+  ));
+}
+
+function latLonToEarthLocal(latDeg, lonDeg, radius = ECLIPSE_EARTH_RADIUS) {
+  const lat = degToRad(latDeg);
+  const lon = degToRad(lonDeg);
+  const cosLat = Math.cos(lat);
+  return new THREE.Vector3(
+    cosLat * Math.cos(lon),
+    Math.sin(lat),
+    cosLat * Math.sin(lon)
+  ).multiplyScalar(radius);
+}
+
+function earthSpinQuaternion(date) {
+  const theta = degToRad(gmstDeg(date));
+  const xAxis = equatorialVectorToScene([Math.cos(theta), Math.sin(theta), 0]).normalize();
+  const yAxis = equatorialVectorToScene([0, 0, 1]).normalize();
+  const zAxis = equatorialVectorToScene([-Math.sin(theta), Math.cos(theta), 0]).normalize();
+  const basis = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+  return new THREE.Quaternion().setFromRotationMatrix(basis);
+}
+
+function lerpLonDeg(a, b, t) {
+  return a + normSignedDeg(b - a) * t;
+}
+
+function formatUtcTime(date) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    timeZone: 'UTC', timeZoneName: 'short',
+  }).format(date);
 }
 
 /* ---------- solar system positions ---------- */
@@ -2459,6 +2650,418 @@ const solarChartBodies = solarObjects.filter(
     (o.data.kind !== 'moon' || o.data.slug === 'moon')
 );
 
+/* ---------- 2026 total solar eclipse ---------- */
+
+const eclipseRaw = window.ECLIPSE2026;
+const eclipseSamples = eclipseRaw.samples.map(sample => ({
+  ...sample,
+  date: eclipseUtcDate(sample.time),
+  jd: julianDate(eclipseUtcDate(sample.time)),
+  centerPt: {
+    lat: parseEclipseCoord(sample.center[0]),
+    lon: parseEclipseCoord(sample.center[1]),
+  },
+  northPt: sample.north ? {
+    lat: parseEclipseCoord(sample.north[0]),
+    lon: parseEclipseCoord(sample.north[1]),
+  } : null,
+  southPt: sample.south ? {
+    lat: parseEclipseCoord(sample.south[0]),
+    lon: parseEclipseCoord(sample.south[1]),
+  } : null,
+}));
+const eclipseLocations = eclipseRaw.locations.map(location => ({
+  ...location,
+  date: eclipseUtcDate(location.time),
+  jd: julianDate(eclipseUtcDate(location.time)),
+}));
+const ECLIPSE_START_JD = eclipseSamples[0].jd;
+const ECLIPSE_END_JD = eclipseSamples[eclipseSamples.length - 1].jd;
+
+const eclipseState = {
+  active: false,
+  playing: false,
+  view: 'side',
+  location: eclipseLocations[0],
+  jd: julianDate(eclipseUtcDate(eclipseRaw.events.greatestEclipse.time)),
+};
+
+const eclipseRoot = new THREE.Group();
+eclipseRoot.visible = false;
+scene.add(eclipseRoot);
+
+const eclipseEarthGroup = new THREE.Group();
+eclipseRoot.add(eclipseEarthGroup);
+
+const eclipseTextureLoader = new THREE.TextureLoader();
+eclipseTextureLoader.setCrossOrigin('anonymous');
+const eclipseEarthMaterial = new THREE.MeshPhongMaterial({
+  color: 0x8ab4ff,
+  emissive: 0x071326,
+  emissiveIntensity: 0.5,
+  shininess: 18,
+});
+eclipseTextureLoader.load(
+  'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+  texture => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    eclipseEarthMaterial.map = texture;
+    eclipseEarthMaterial.needsUpdate = true;
+  }
+);
+
+const eclipseEarthMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(ECLIPSE_EARTH_RADIUS, 96, 48),
+  eclipseEarthMaterial
+);
+eclipseEarthMesh.renderOrder = 42;
+eclipseEarthGroup.add(eclipseEarthMesh);
+
+const eclipseAtmosphere = new THREE.Mesh(
+  new THREE.SphereGeometry(ECLIPSE_EARTH_RADIUS * 1.018, 96, 48),
+  new THREE.MeshBasicMaterial({
+    color: 0x7fb7ff,
+    transparent: true,
+    opacity: 0.18,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
+    depthWrite: false,
+  })
+);
+eclipseAtmosphere.renderOrder = 43;
+eclipseEarthGroup.add(eclipseAtmosphere);
+
+const eclipseSunLight = new THREE.DirectionalLight(0xfff2cf, 2.1);
+const eclipseFillLight = new THREE.AmbientLight(0x516b9a, 0.72);
+eclipseRoot.add(eclipseSunLight, eclipseFillLight);
+eclipseRoot.add(eclipseSunLight.target);
+
+function makeEclipseLine(points, color, opacity, { dashed = false } = {}) {
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = dashed
+    ? new THREE.LineDashedMaterial({ color, transparent: true, opacity, dashSize: 0.032, gapSize: 0.022 })
+    : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  const line = new THREE.Line(geo, mat);
+  if (dashed) line.computeLineDistances();
+  line.renderOrder = 56;
+  return line;
+}
+
+function makeEclipsePathLine(key, color, opacity, opts = {}) {
+  const points = eclipseSamples
+    .map(sample => sample[key])
+    .filter(Boolean)
+    .map(point => latLonToEarthLocal(point.lat, point.lon, ECLIPSE_EARTH_RADIUS * 1.01));
+  return makeEclipseLine(points, color, opacity, opts);
+}
+
+function makeEclipseGraticule() {
+  const group = new THREE.Group();
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const points = [];
+    for (let lon = -180; lon <= 180; lon += 4) {
+      points.push(latLonToEarthLocal(lat, lon, ECLIPSE_EARTH_RADIUS * 1.006));
+    }
+    group.add(makeEclipseLine(points, 0x9fb7d6, lat === 0 ? 0.22 : 0.13));
+  }
+  for (let lon = -150; lon <= 180; lon += 30) {
+    const points = [];
+    for (let lat = -80; lat <= 80; lat += 4) {
+      points.push(latLonToEarthLocal(lat, lon, ECLIPSE_EARTH_RADIUS * 1.006));
+    }
+    group.add(makeEclipseLine(points, 0x9fb7d6, lon === 0 ? 0.2 : 0.11));
+  }
+  return group;
+}
+
+const eclipseGraticule = makeEclipseGraticule();
+eclipseEarthGroup.add(eclipseGraticule);
+
+const eclipsePathGroup = new THREE.Group();
+eclipsePathGroup.add(makeEclipsePathLine('northPt', 0x7fd7ff, 0.45, { dashed: true }));
+eclipsePathGroup.add(makeEclipsePathLine('southPt', 0x7fd7ff, 0.45, { dashed: true }));
+eclipsePathGroup.add(makeEclipsePathLine('centerPt', 0xffdf87, 0.94));
+eclipseEarthGroup.add(eclipsePathGroup);
+
+const eclipseLocationGroup = new THREE.Group();
+const eclipseLocationMarkers = new Map();
+eclipseEarthGroup.add(eclipseLocationGroup);
+
+for (const location of eclipseLocations) {
+  const normal = latLonToEarthLocal(location.lat, location.lon, 1).normalize();
+  const marker = new THREE.Group();
+  const dot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.018, 18, 10),
+    new THREE.MeshBasicMaterial({ color: 0xfff0b8, depthTest: false, depthWrite: false })
+  );
+  dot.renderOrder = 75;
+  marker.add(dot);
+  const stem = makeEclipseLine(
+    [
+      normal.clone().multiplyScalar(ECLIPSE_EARTH_RADIUS * 1.01),
+      normal.clone().multiplyScalar(ECLIPSE_EARTH_RADIUS * 1.16),
+    ],
+    0xffdf87,
+    0.75
+  );
+  stem.renderOrder = 74;
+  marker.add(stem);
+  const label = makeTextSprite(location.label, {
+    size: 14,
+    color: '#fff0c2',
+    weight: 700,
+    opacity: 0.88,
+    unit: 0.0036,
+  });
+  label.position.copy(normal).multiplyScalar(ECLIPSE_EARTH_RADIUS * 1.22);
+  label.renderOrder = 78;
+  marker.add(label);
+  marker.userData = { dot, label };
+  eclipseLocationGroup.add(marker);
+  eclipseLocationMarkers.set(location.id, marker);
+}
+
+function makeEclipseDisc(radius, color, opacity) {
+  const mesh = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 64),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    })
+  );
+  mesh.renderOrder = 90;
+  return mesh;
+}
+
+const eclipseShadowGroup = new THREE.Group();
+const eclipseShadowFill = makeEclipseDisc(ECLIPSE_SHADOW_RADIUS, 0x05070c, 0.72);
+const eclipseShadowCore = makeEclipseDisc(ECLIPSE_SHADOW_RADIUS * 0.46, 0x000000, 0.86);
+const eclipseShadowRing = new THREE.Mesh(
+  new THREE.TorusGeometry(ECLIPSE_SHADOW_RADIUS * 1.02, 0.008, 12, 96),
+  new THREE.MeshBasicMaterial({
+    color: 0xffdf87,
+    transparent: true,
+    opacity: 0.92,
+    depthTest: false,
+    depthWrite: false,
+  })
+);
+eclipseShadowRing.renderOrder = 91;
+eclipseShadowGroup.add(eclipseShadowFill, eclipseShadowCore, eclipseShadowRing);
+const eclipseShadowLabel = makeTextSprite('umbra', {
+  size: 15,
+  color: '#ffefc8',
+  weight: 750,
+  opacity: 0.94,
+  unit: 0.0038,
+});
+eclipseShadowLabel.renderOrder = 95;
+eclipseEarthGroup.add(eclipseShadowGroup, eclipseShadowLabel);
+
+const eclipseMoonMaterial = new THREE.MeshPhongMaterial({
+  color: 0xd9dde6,
+  emissive: 0x191b21,
+  emissiveIntensity: 0.42,
+  shininess: 5,
+});
+eclipseTextureLoader.load(
+  'https://threejs.org/examples/textures/planets/moon_1024.jpg',
+  texture => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    eclipseMoonMaterial.map = texture;
+    eclipseMoonMaterial.needsUpdate = true;
+  }
+);
+const eclipseMoonMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(ECLIPSE_MOON_RADIUS, 48, 24),
+  eclipseMoonMaterial
+);
+eclipseMoonMesh.renderOrder = 70;
+eclipseEarthGroup.add(eclipseMoonMesh);
+
+const eclipseMoonLabel = makeTextSprite('Moon', {
+  size: 15,
+  color: '#e9edf7',
+  weight: 700,
+  opacity: 0.88,
+  unit: 0.004,
+});
+eclipseMoonLabel.renderOrder = 81;
+eclipseEarthGroup.add(eclipseMoonLabel);
+
+const eclipseSunMarker = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeGlowTexture('#ffdf87'),
+  transparent: true,
+  opacity: 0.78,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  depthTest: false,
+}));
+eclipseSunMarker.scale.set(0.52, 0.52, 1);
+eclipseSunMarker.renderOrder = 72;
+eclipseEarthGroup.add(eclipseSunMarker);
+
+const eclipseSunLabel = makeTextSprite('Sun direction', {
+  size: 14,
+  color: '#ffe7a8',
+  weight: 700,
+  opacity: 0.86,
+  unit: 0.004,
+});
+eclipseSunLabel.renderOrder = 82;
+eclipseEarthGroup.add(eclipseSunLabel);
+
+const eclipseShadowCone = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.035, 0.16, ECLIPSE_MOON_DISTANCE - ECLIPSE_EARTH_RADIUS, 48, 1, true),
+  new THREE.MeshBasicMaterial({
+    color: 0x020308,
+    transparent: true,
+    opacity: 0.34,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    blending: THREE.NormalBlending,
+  })
+);
+eclipseShadowCone.renderOrder = 68;
+eclipseEarthGroup.add(eclipseShadowCone);
+
+const eclipseAxisLine = makeEclipseLine(
+  [new THREE.Vector3(), new THREE.Vector3()],
+  0xffdf87,
+  0.55,
+  { dashed: true }
+);
+eclipseAxisLine.renderOrder = 69;
+eclipseEarthGroup.add(eclipseAxisLine);
+
+function orientLocalPlane(node, normal) {
+  node.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+}
+
+function interpolateEclipseSample(jd) {
+  if (jd <= ECLIPSE_START_JD) return { ...eclipseSamples[0], t: 0 };
+  if (jd >= ECLIPSE_END_JD) return { ...eclipseSamples[eclipseSamples.length - 1], t: 1 };
+
+  for (let i = 1; i < eclipseSamples.length; i++) {
+    const a = eclipseSamples[i - 1], b = eclipseSamples[i];
+    if (jd > b.jd) continue;
+    const t = (jd - a.jd) / (b.jd - a.jd);
+    return {
+      ...b,
+      t,
+      date: jdToDate(jd),
+      centerPt: {
+        lat: THREE.MathUtils.lerp(a.centerPt.lat, b.centerPt.lat, t),
+        lon: lerpLonDeg(a.centerPt.lon, b.centerPt.lon, t),
+      },
+      sunAlt: THREE.MathUtils.lerp(a.sunAlt, b.sunAlt, t),
+      widthKm: THREE.MathUtils.lerp(a.widthKm, b.widthKm, t),
+      duration: t < 0.5 ? a.duration : b.duration,
+    };
+  }
+  return { ...eclipseSamples[eclipseSamples.length - 1], t: 1 };
+}
+
+function formatLatLon(lat, lon) {
+  const ns = lat >= 0 ? 'N' : 'S';
+  const ew = lon >= 0 ? 'E' : 'W';
+  return `${Math.abs(lat).toFixed(1)}°${ns}, ${Math.abs(lon).toFixed(1)}°${ew}`;
+}
+
+function eclipseSliderValueFor(jd) {
+  return Math.round(1000 * (jd - ECLIPSE_START_JD) / (ECLIPSE_END_JD - ECLIPSE_START_JD));
+}
+
+function eclipseJDForSlider(value) {
+  const t = Number(value) / 1000;
+  return THREE.MathUtils.lerp(ECLIPSE_START_JD, ECLIPSE_END_JD, t);
+}
+
+function syncEclipseLocationMarkers() {
+  for (const [id, marker] of eclipseLocationMarkers) {
+    const active = id === eclipseState.location.id;
+    marker.userData.dot.scale.setScalar(active ? 1.7 : 1);
+    marker.userData.label.material.opacity = active ? 1 : 0.78;
+  }
+}
+
+function renderEclipseReadout(sample) {
+  const timeLabel = document.getElementById('eclipse-time-label');
+  const placeLabel = document.getElementById('eclipse-place-label');
+  const slider = document.getElementById('eclipse-slider');
+  if (!timeLabel || !placeLabel || !slider) return;
+
+  timeLabel.textContent = `${formatUtcTime(sample.date)} · ${formatLatLon(sample.centerPt.lat, sample.centerPt.lon)}`;
+  placeLabel.textContent = `Central line · Sun alt ${sample.sunAlt.toFixed(0)}° · path width ${Math.round(sample.widthKm)} km · totality ${sample.duration} · shadow enlarged for visibility`;
+  slider.value = eclipseSliderValueFor(eclipseState.jd);
+}
+
+function updateEclipseScene() {
+  if (!eclipseState.active) return;
+
+  const date = jdToDate(eclipseState.jd);
+  const earthObj = solarBySlug.earth;
+  const sample = interpolateEclipseSample(eclipseState.jd);
+  const focusPoint = eclipseState.view === 'surface'
+    ? eclipseState.location
+    : sample.centerPt;
+  const surfaceMode = eclipseState.view === 'surface';
+  const normal = latLonToEarthLocal(focusPoint.lat, focusPoint.lon, 1).normalize();
+  const surface = normal.clone().multiplyScalar(ECLIPSE_EARTH_RADIUS * 1.018);
+  const moonPos = normal.clone().multiplyScalar(ECLIPSE_MOON_DISTANCE);
+  const sunPos = normal.clone().multiplyScalar(ECLIPSE_MOON_DISTANCE + 0.64);
+  const coneAxis = surface.clone().sub(moonPos).normalize();
+  const coneCenter = moonPos.clone().add(surface).multiplyScalar(0.5);
+
+  eclipseEarthGroup.position.copy(earthObj.pos);
+  eclipseEarthGroup.quaternion.copy(earthSpinQuaternion(date));
+
+  eclipseShadowGroup.position.copy(surface);
+  orientLocalPlane(eclipseShadowGroup, normal);
+  eclipseShadowLabel.position.copy(normal).multiplyScalar(ECLIPSE_EARTH_RADIUS * 1.2);
+
+  eclipseMoonMesh.position.copy(moonPos);
+  eclipseMoonLabel.position.copy(moonPos).addScaledVector(normal, 0.26);
+  eclipseSunMarker.position.copy(sunPos);
+  eclipseSunLabel.position.copy(sunPos).addScaledVector(normal, 0.28);
+  eclipseMoonMesh.visible = !surfaceMode;
+  eclipseMoonLabel.visible = !surfaceMode;
+  eclipseSunMarker.visible = !surfaceMode;
+  eclipseSunLabel.visible = !surfaceMode;
+  eclipseShadowCone.visible = !surfaceMode;
+  eclipseAxisLine.visible = !surfaceMode;
+
+  eclipseShadowCone.position.copy(coneCenter);
+  eclipseShadowCone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), coneAxis);
+  eclipseAxisLine.geometry.setFromPoints([sunPos, surface.clone().multiplyScalar(0.99)]);
+  eclipseAxisLine.computeLineDistances();
+
+  const lightDir = earthObj.pos.clone().multiplyScalar(-1).normalize();
+  eclipseSunLight.position.copy(earthObj.pos).addScaledVector(lightDir, 12);
+  eclipseSunLight.target.position.copy(earthObj.pos);
+
+  syncEclipseLocationMarkers();
+  renderEclipseReadout(sample);
+}
+
+function setEclipseJD(jd, { keepPlaying = false } = {}) {
+  eclipseState.jd = THREE.MathUtils.clamp(jd, ECLIPSE_START_JD, ECLIPSE_END_JD);
+  if (!keepPlaying && (eclipseState.jd <= ECLIPSE_START_JD || eclipseState.jd >= ECLIPSE_END_JD)) {
+    eclipseState.playing = false;
+  }
+  setSolarJD(eclipseState.jd);
+}
+
+function setEclipsePlaying(on) {
+  eclipseState.playing = on;
+  const playBtn = document.getElementById('eclipse-play');
+  if (playBtn) playBtn.innerHTML = on ? '&#10074;&#10074;' : '&#9654;';
+}
+
 /* ---------- bright & nearby stars ---------- */
 
 const starsGroup = new THREE.Group();
@@ -2535,6 +3138,10 @@ const tonightModal = $('tonight-modal'), tonightSubtitle = $('tonight-subtitle')
 const tonightClose = $('tonight-close'), tonightList = $('tonight-list');
 const tonightCity = $('tonight-city'), tonightCityBtn = $('tonight-city-btn');
 const tonightLocateBtn = $('tonight-locate-btn'), tonightStatus = $('tonight-status');
+const eclipseBtn = $('eclipsebtn'), eclipsePanel = $('eclipse-panel');
+const eclipseViewButtons = $('eclipse-view-buttons'), eclipseLocationButtons = $('eclipse-location-buttons');
+const eclipseSlider = $('eclipse-slider'), eclipsePlay = $('eclipse-play'), eclipseClose = $('eclipse-close');
+const eclipseSurfaceSky = $('eclipse-surface-sky'), eclipseSurfaceLabel = $('eclipse-surface-label');
 
 const skyGroupState = Object.fromEntries(
   Object.keys(SKY_GROUPS).map(key => [key, {
@@ -2757,6 +3364,81 @@ function updateNowOverlay() {
 }
 
 nowToggle.addEventListener('change', updateNowOverlay);
+
+function syncEclipseControls() {
+  eclipseBtn.classList.toggle('active', eclipseState.active);
+  eclipsePanel.classList.toggle('open', eclipseState.active);
+  eclipseSurfaceSky.classList.toggle('show', eclipseState.active && eclipseState.view === 'surface');
+  eclipseSurfaceLabel.textContent = `${eclipseState.location.label} totality · ${eclipseState.location.time} UTC`;
+  for (const button of eclipseViewButtons.querySelectorAll('button')) {
+    button.classList.toggle('active', button.dataset.view === eclipseState.view);
+  }
+  for (const button of eclipseLocationButtons.querySelectorAll('button')) {
+    button.classList.toggle('active', button.dataset.location === eclipseState.location.id);
+  }
+}
+
+function openEclipseMode({ preserveHash = false } = {}) {
+  const hashUrl = location.pathname + location.search + location.hash;
+  deselect();
+  if (preserveHash && hashUrl.includes('#')) history.replaceState(null, '', hashUrl);
+  closeTonight();
+  setTdPlaying(false);
+  eclipseState.active = true;
+  eclipseRoot.visible = true;
+  controls.autoRotate = false;
+  setEclipseJD(eclipseState.jd, { keepPlaying: true });
+  syncEclipseControls();
+  frameEclipseView(eclipseState.view);
+}
+
+function closeEclipseMode() {
+  eclipseState.active = false;
+  eclipseRoot.visible = false;
+  setEclipsePlaying(false);
+  syncEclipseControls();
+}
+
+function setEclipseView(view) {
+  eclipseState.view = view;
+  if (view === 'surface') setEclipseJD(eclipseState.location.jd, { keepPlaying: true });
+  syncEclipseControls();
+  frameEclipseView(view);
+}
+
+function setEclipseLocation(locationId) {
+  const location = eclipseLocations.find(item => item.id === locationId) || eclipseLocations[0];
+  eclipseState.location = location;
+  setEclipseJD(location.jd, { keepPlaying: true });
+  syncEclipseControls();
+  if (eclipseState.view === 'surface') frameEclipseView('surface');
+}
+
+for (const location of eclipseLocations) {
+  const button = document.createElement('button');
+  button.dataset.location = location.id;
+  button.textContent = location.label;
+  button.title = `${location.place} · ${location.time} UTC`;
+  button.addEventListener('click', () => setEclipseLocation(location.id));
+  eclipseLocationButtons.appendChild(button);
+}
+
+eclipseBtn.addEventListener('click', () => {
+  if (eclipseState.active) closeEclipseMode();
+  else openEclipseMode();
+});
+eclipseClose.addEventListener('click', closeEclipseMode);
+eclipseViewButtons.addEventListener('click', e => {
+  const button = e.target.closest('button[data-view]');
+  if (button) setEclipseView(button.dataset.view);
+});
+eclipseSlider.addEventListener('input', () => {
+  setEclipsePlaying(false);
+  setEclipseJD(eclipseJDForSlider(eclipseSlider.value), { keepPlaying: true });
+  if (eclipseState.view === 'surface') frameEclipseView('surface');
+});
+eclipsePlay.addEventListener('click', () => setEclipsePlaying(!eclipseState.playing));
+syncEclipseControls();
 
 function setSkyLocationStatus(text, { error = false } = {}) {
   skyLocationStatus.textContent = text;
@@ -3459,6 +4141,59 @@ function flyTo(targetPos, camDistance) {
   };
 }
 
+function flyCameraTo(cameraPos, targetPos, dur = 1200) {
+  flight = {
+    t0: performance.now(), dur,
+    camFrom: camera.position.clone(), camTo: cameraPos.clone(),
+    tgtFrom: controls.target.clone(), tgtTo: targetPos.clone(),
+  };
+}
+
+function eclipseWorldVector(localUnit) {
+  const earth = eclipseEarthGroup.getWorldPosition(new THREE.Vector3());
+  return eclipseEarthGroup.localToWorld(localUnit.clone()).sub(earth).normalize();
+}
+
+function frameEclipseView(view = eclipseState.view) {
+  if (!eclipseState.active) return;
+  updateEclipseScene();
+  eclipseEarthGroup.updateWorldMatrix(true, true);
+
+  const earth = eclipseEarthGroup.getWorldPosition(new THREE.Vector3());
+  const earthToSun = earth.clone().multiplyScalar(-1).normalize();
+  const northWorld = eclipseWorldVector(new THREE.Vector3(0, 1, 0));
+  let side = new THREE.Vector3().crossVectors(earthToSun, northWorld);
+  if (side.lengthSq() < 0.01) side = new THREE.Vector3().crossVectors(earthToSun, new THREE.Vector3(1, 0, 0));
+  side.normalize();
+  controls.autoRotate = false;
+
+  if (view === 'sun') {
+    const cam = earth.clone()
+      .addScaledVector(earthToSun, 4.7)
+      .addScaledVector(northWorld, 0.34);
+    flyCameraTo(cam, earth, 1150);
+    return;
+  }
+
+  if (view === 'surface') {
+    const localNormal = latLonToEarthLocal(eclipseState.location.lat, eclipseState.location.lon, 1).normalize();
+    const normalWorld = eclipseWorldVector(localNormal);
+    const surface = earth.clone().addScaledVector(normalWorld, ECLIPSE_EARTH_RADIUS * 0.98);
+    const cam = earth.clone()
+      .addScaledVector(normalWorld, 3.25)
+      .addScaledVector(side, 0.42)
+      .addScaledVector(northWorld, 0.18);
+    flyCameraTo(cam, surface, 1150);
+    return;
+  }
+
+  const cam = earth.clone()
+    .addScaledVector(earthToSun, 2.75)
+    .addScaledVector(side, 2.75)
+    .addScaledVector(northWorld, 0.55);
+  flyCameraTo(cam, earth, 1150);
+}
+
 function select(obj, { fly = true } = {}) {
   selected = obj;
   controls.autoRotate = false;
@@ -3487,10 +4222,12 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (skyModal.classList.contains('open')) closeSkyView();
   else if (tonightModal.classList.contains('open')) closeTonight();
+  else if (eclipseState.active) closeEclipseMode();
   else deselect();
 });
 
 $('resetview').addEventListener('click', () => {
+  closeEclipseMode();
   deselect();
   flyTo(new THREE.Vector3(0, 0, 0), HOME_POS.length());
 });
@@ -3769,12 +4506,15 @@ function refreshSolarPanel() {
 
 function setSolarJD(jd) {
   solarJD = THREE.MathUtils.clamp(jd, TIME_MIN_JD, TIME_MAX_JD);
+  if (eclipseState.active) eclipseState.jd = solarJD;
   updateSolarPositions();
+  updateEclipseScene();
   refreshTimeDeck();
   refreshSolarPanel();
 }
 
 function setTdPlaying(on) {
+  if (on && eclipseState.active) setEclipsePlaying(false);
   tdPlaying = on;
   tdPlay.innerHTML = on ? '&#10074;&#10074;' : '&#9654;';
 }
@@ -3948,13 +4688,19 @@ tonightLocateBtn.addEventListener('click', async () => {
 /* ---------- deep link ---------- */
 
 {
+  const hash = location.hash.slice(1).toLowerCase();
   const m = location.hash.match(/^#m(\d+)$/i);
-  if (m) {
+  if (hash === 'eclipse' || hash.startsWith('eclipse-')) {
+    openEclipseMode({ preserveHash: true });
+    const parts = hash.split('-');
+    if (parts.includes('surface')) setEclipseView('surface');
+    const locationId = parts.find(part => eclipseLocations.some(location => location.id === part));
+    if (locationId) setEclipseLocation(locationId);
+  } else if (m) {
     const obj = objects.find(o => o.data.m === Number(m[1]));
     if (obj) select(obj, { fly: true });
   } else {
-    const slug = location.hash.slice(1).toLowerCase();
-    const obj = solarBySlug[slug] || starsBySlug[slug];
+    const obj = solarBySlug[hash] || starsBySlug[hash];
     if (obj) select(obj, { fly: true });
   }
 }
@@ -3973,6 +4719,11 @@ function animate(now) {
     const next = solarJD + TD_SPEEDS[tdSpeedIdx][1] * dtSec;
     if (next >= TIME_MAX_JD) setTdPlaying(false);
     setSolarJD(next);
+  }
+  if (eclipseState.active && eclipseState.playing) {
+    const next = eclipseState.jd + (ECLIPSE_PLAY_MIN_PER_SEC / 1440) * dtSec;
+    if (next >= ECLIPSE_END_JD) setEclipsePlaying(false);
+    setEclipseJD(Math.min(next, ECLIPSE_END_JD), { keepPlaying: true });
   }
 
   if (flight) {
@@ -4027,6 +4778,8 @@ window.__ATLAS = {
   galacticOutlineGroup, warpEnterpriseGroup, WARP_TARGETS, setWarpEnterpriseTarget,
   setSolarJD, getSolarJD: () => solarJD, setTdPlaying, openTonight,
   apparentMag, absoluteMag, setIntrinsicSizing,
+  eclipseState, eclipseSamples, openEclipseMode, closeEclipseMode, setEclipseView,
+  setEclipseLocation, setEclipseJD, frameEclipseView,
 };
 </script>
 </body>
