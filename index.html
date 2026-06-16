@@ -126,6 +126,167 @@
   }
   #legend .warp-readout b { color: var(--text); font-weight: 650; }
   #legend .warp-readout span { overflow-wrap: anywhere; }
+  #legend .warp-actions {
+    display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 8px;
+  }
+  #legend .warp-actions button {
+    min-width: 0; padding: 7px 9px;
+    background: rgba(143, 215, 255, 0.09);
+    border: 1px solid rgba(143, 215, 255, 0.28);
+    border-radius: 8px;
+    color: #d8f3ff; font-size: 12px; cursor: pointer;
+  }
+  #legend .warp-actions button:hover {
+    background: rgba(143, 215, 255, 0.16);
+    border-color: rgba(143, 215, 255, 0.5);
+  }
+
+  /* ---------- Enterprise bridge ---------- */
+  body.cockpit-mode #header,
+  body.cockpit-mode #legend,
+  body.cockpit-mode #hint,
+  body.cockpit-mode #timedeck {
+    opacity: 0;
+    pointer-events: none;
+  }
+  body.cockpit-mode #panel.open {
+    top: 76px; right: 16px; bottom: 98px;
+    z-index: 90;
+    border-color: rgba(143, 215, 255, 0.26);
+    box-shadow: 0 0 28px rgba(0, 0, 0, 0.34);
+  }
+  #cockpit {
+    position: fixed; inset: 0; z-index: 70;
+    display: none; pointer-events: none;
+    color: #dff7ff;
+  }
+  #cockpit.open { display: block; }
+  #cockpit::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 40%, rgba(92, 176, 220, 0) 0 42%, rgba(1, 8, 16, 0.55) 72%, rgba(1, 8, 16, 0.88) 100%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0) 13%, rgba(0, 0, 0, 0) 87%, rgba(0, 0, 0, 0.72));
+  }
+  #cockpit::after {
+    content: "";
+    position: absolute; left: 7vw; right: 7vw; bottom: 5.5vh; height: 19vh;
+    border: 1px solid rgba(128, 218, 255, 0.24);
+    border-bottom: 0;
+    border-radius: 42% 42% 0 0 / 84% 84% 0 0;
+    background:
+      linear-gradient(90deg, rgba(9, 21, 34, 0.9), rgba(18, 42, 58, 0.78), rgba(9, 21, 34, 0.9)),
+      repeating-linear-gradient(90deg, rgba(134, 222, 255, 0.14) 0 1px, transparent 1px 15vw);
+    box-shadow:
+      inset 0 1px 18px rgba(132, 221, 255, 0.1),
+      0 -8px 34px rgba(0, 0, 0, 0.48);
+  }
+  .cockpit-topbar {
+    position: absolute; left: 22px; top: 18px; right: 22px;
+    display: flex; justify-content: space-between; gap: 12px; align-items: center;
+    z-index: 3;
+  }
+  .cockpit-id,
+  .cockpit-readout,
+  .cockpit-console {
+    border: 1px solid rgba(143, 215, 255, 0.24);
+    background: rgba(4, 14, 25, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 8px;
+    box-shadow: inset 0 0 18px rgba(108, 210, 255, 0.08);
+  }
+  .cockpit-id { padding: 9px 12px; min-width: min(410px, 54vw); }
+  .cockpit-id span {
+    display: block; color: #8fd7ff; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.4px;
+  }
+  .cockpit-id strong {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 15px; font-weight: 650; letter-spacing: 0.2px;
+  }
+  .cockpit-right {
+    display: flex; align-items: stretch; justify-content: flex-end; gap: 8px;
+    min-width: 0;
+  }
+  .cockpit-readout {
+    display: grid; place-items: center; min-width: 156px; padding: 7px 10px;
+    color: #a9e8ff; font-size: 11.5px; text-align: right;
+  }
+  #cockpit-exit {
+    pointer-events: auto;
+    min-width: 90px; padding: 0 12px;
+    border: 1px solid rgba(255, 211, 137, 0.48);
+    border-radius: 8px;
+    background: rgba(255, 211, 137, 0.12);
+    color: #ffe7ad; cursor: pointer; font-size: 12px; font-weight: 650;
+    text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  #cockpit-exit:hover {
+    background: rgba(255, 211, 137, 0.22);
+    border-color: rgba(255, 211, 137, 0.74);
+  }
+  #cockpit-hud {
+    position: absolute; inset: 74px 14px 100px; z-index: 2;
+    pointer-events: none;
+  }
+  .cockpit-target {
+    position: absolute; transform: translate(-50%, -50%);
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 7px; align-items: center;
+    max-width: min(230px, 38vw);
+    padding: 5px 8px;
+    border: 1px solid rgba(143, 215, 255, 0.42);
+    border-radius: 8px;
+    background: rgba(3, 12, 22, 0.68);
+    color: #e4fbff;
+    box-shadow: 0 0 14px rgba(74, 190, 255, 0.13);
+    cursor: pointer;
+    pointer-events: auto;
+    text-align: left;
+  }
+  .cockpit-target:hover {
+    background: rgba(18, 44, 67, 0.9);
+    border-color: rgba(255, 232, 173, 0.72);
+  }
+  .cockpit-target .pin {
+    grid-row: span 2; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--target-color, #8fd7ff);
+    box-shadow: 0 0 11px var(--target-color, #8fd7ff);
+  }
+  .cockpit-target b {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 12px; font-weight: 700; line-height: 1.1;
+  }
+  .cockpit-target span:last-child {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #9fc3d2; font-size: 10.5px; line-height: 1.1;
+  }
+  .cockpit-reticle {
+    position: absolute; left: 50%; top: 45%; width: 112px; height: 112px;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(143, 215, 255, 0.16);
+    border-radius: 50%;
+    z-index: 1;
+  }
+  .cockpit-reticle::before,
+  .cockpit-reticle::after {
+    content: ""; position: absolute; background: rgba(143, 215, 255, 0.28);
+  }
+  .cockpit-reticle::before { left: 50%; top: -18px; bottom: -18px; width: 1px; }
+  .cockpit-reticle::after { top: 50%; left: -18px; right: -18px; height: 1px; }
+  .cockpit-console {
+    position: absolute; left: 22px; right: 22px; bottom: 18px; z-index: 3;
+    min-height: 62px; padding: 11px 14px;
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;
+  }
+  .cockpit-console span {
+    display: block; color: #80cfe8; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.9px;
+  }
+  .cockpit-console b {
+    display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: #f0fcff; font-size: 13px; font-weight: 650;
+  }
 
   /* ---------- hint ---------- */
   #hint {
@@ -475,6 +636,23 @@
     .eclipse-buttons { grid-template-columns: 1fr; }
     .eclipse-buttons.location-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #eclipse-surface-sky { width: min(58vmin, 280px); top: 42%; }
+    body.cockpit-mode #panel.open {
+      left: 12px; right: 12px; top: auto; bottom: 88px; width: auto; max-height: 45vh;
+    }
+    .cockpit-topbar {
+      left: 12px; right: 12px; top: 12px; align-items: flex-start;
+    }
+    .cockpit-id { min-width: 0; }
+    .cockpit-right { flex-direction: column; }
+    .cockpit-readout { min-width: 108px; }
+    #cockpit-exit { min-height: 34px; }
+    #cockpit-hud { inset: 78px 8px 92px; }
+    .cockpit-console {
+      left: 12px; right: 12px; bottom: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px; padding: 9px 10px;
+    }
+    .cockpit-console b { font-size: 12px; }
   }
 </style>
 </head>
@@ -509,6 +687,27 @@
   <input id="td-slider" type="range">
   <span id="td-date"></span>
   <button id="td-now" title="Jump back to today">Now</button>
+</div>
+
+<div id="cockpit" aria-hidden="true">
+  <div class="cockpit-topbar">
+    <div class="cockpit-id">
+      <span>USS Enterprise</span>
+      <strong id="cockpit-title">Bridge view</strong>
+    </div>
+    <div class="cockpit-right">
+      <div class="cockpit-readout" id="cockpit-clock"></div>
+      <button id="cockpit-exit" type="button">Exit</button>
+    </div>
+  </div>
+  <div class="cockpit-reticle"></div>
+  <div id="cockpit-hud"></div>
+  <div class="cockpit-console">
+    <div><span>Course</span><b id="cockpit-course"></b></div>
+    <div><span>Warp</span><b id="cockpit-warp"></b></div>
+    <div><span>Range</span><b id="cockpit-range"></b></div>
+    <div><span>Contacts</span><b id="cockpit-contacts"></b></div>
+  </div>
 </div>
 
 <div id="eclipse-panel" class="overlay">
@@ -735,6 +934,9 @@ const WARP_ENTERPRISE_LAYER = {
 };
 
 const WARP_PREVIEW_CYCLE_MS = 24000;
+const COCKPIT_LABEL_LIMIT = 12;
+const COCKPIT_HUD_REFRESH_MS = 90;
+const COCKPIT_LABEL_MIN_GAP = 64;
 const WARP_TARGETS = [
   { id: 'alpha-centauri', name: 'Alpha Centauri', ra: 219.9021, dec: -60.8339, dist_ly: 4.37 },
   { id: 'wolf-359', name: 'Wolf 359', ra: 164.1208, dec: 7.0147, dist_ly: 7.86 },
@@ -2071,7 +2273,7 @@ function populateWarpEnterpriseGroup(group, target) {
   shipLabel.renderOrder = 91;
   group.add(shipLabel);
 
-  group.userData = { ship, shipLabel, dir, up, targetLy: target.dist_ly, targetYears };
+  group.userData = { ship, shipLabel, dir, up, side, targetLy: target.dist_ly, targetYears };
   return group;
 }
 
@@ -2093,7 +2295,7 @@ function setWarpEnterpriseTarget(targetId) {
 
 function updateWarpEnterprise(now) {
   if (!warpEnterpriseGroup.visible) return;
-  const { ship, shipLabel, dir, up, targetLy, targetYears } = warpEnterpriseGroup.userData;
+  const { ship, shipLabel, dir, up, side, targetLy, targetYears } = warpEnterpriseGroup.userData;
   const cycleMs = WARP_PREVIEW_CYCLE_MS;
   const phase = (now % cycleMs) / cycleMs;
   const travelT = phase < 0.94 ? phase / 0.94 : 1;
@@ -2103,6 +2305,11 @@ function updateWarpEnterprise(now) {
   const pos = dir.clone().multiplyScalar(radiusFor(ly));
   ship.position.copy(pos);
   shipLabel.position.copy(pos).addScaledVector(up, 10);
+  ship.visible = !cockpitMode;
+  shipLabel.visible = !cockpitMode;
+  if (cockpitMode) updateCockpitView(now, {
+    pos, dir, up, side, ly, targetYears, elapsedYears: targetYears * travelT,
+  });
   updateWarpEnterpriseReadout(targetYears * travelT);
 }
 
@@ -3428,6 +3635,16 @@ const eclipseBtn = $('eclipsebtn'), eclipsePanel = $('eclipse-panel');
 const eclipseViewButtons = $('eclipse-view-buttons'), eclipseLocationButtons = $('eclipse-location-buttons');
 const eclipseSlider = $('eclipse-slider'), eclipsePlay = $('eclipse-play'), eclipseClose = $('eclipse-close');
 const eclipseSurfaceSky = $('eclipse-surface-sky'), eclipseSurfaceLabel = $('eclipse-surface-label');
+const cockpitEl = $('cockpit'), cockpitHud = $('cockpit-hud'), cockpitExit = $('cockpit-exit');
+const cockpitTitle = $('cockpit-title'), cockpitClock = $('cockpit-clock'), cockpitCourse = $('cockpit-course');
+const cockpitWarp = $('cockpit-warp'), cockpitRange = $('cockpit-range'), cockpitContacts = $('cockpit-contacts');
+
+let cockpitMode = false;
+let cockpitReturnView = null;
+let cockpitHudLast = 0;
+let enterpriseRouteInput = null;
+let enterpriseRouteLabel = null;
+let cockpitEnterBtn = null;
 
 const skyGroupState = Object.fromEntries(
   Object.keys(SKY_GROUPS).map(key => [key, {
@@ -3444,6 +3661,205 @@ let observingLocation = null;
 const skyViewState = { obj: null, location: null, startTime: null };
 let skyHitTargets = [];
 let skyDetailObject = null;
+const cockpitProjectPos = new THREE.Vector3();
+const cockpitForward = new THREE.Vector3();
+const cockpitToObject = new THREE.Vector3();
+
+function syncEnterpriseRouteToggle(on) {
+  if (enterpriseRouteInput) enterpriseRouteInput.checked = on;
+  if (enterpriseRouteLabel) enterpriseRouteLabel.classList.toggle('off', !on);
+}
+
+function enterCockpitMode() {
+  if (cockpitMode) return;
+  closeSkyView();
+  closeTonight();
+  if (eclipseState.active) closeEclipseMode();
+  cockpitReturnView = {
+    camera: camera.position.clone(),
+    target: controls.target.clone(),
+    up: camera.up.clone(),
+  };
+  cockpitMode = true;
+  cockpitHudLast = 0;
+  flight = null;
+  controls.enabled = false;
+  controls.autoRotate = false;
+  warpEnterpriseGroup.visible = true;
+  syncEnterpriseRouteToggle(true);
+  cockpitEl.classList.add('open');
+  cockpitEl.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('cockpit-mode');
+  updateWarpEnterprise(performance.now());
+}
+
+function exitCockpitMode({ restore = true } = {}) {
+  if (!cockpitMode) return;
+  cockpitMode = false;
+  cockpitEl.classList.remove('open');
+  cockpitEl.setAttribute('aria-hidden', 'true');
+  cockpitHud.replaceChildren();
+  document.body.classList.remove('cockpit-mode');
+  controls.enabled = true;
+  controls.autoRotate = false;
+  camera.up.set(0, 1, 0);
+  const { ship, shipLabel } = warpEnterpriseGroup.userData || {};
+  if (ship) ship.visible = true;
+  if (shipLabel) shipLabel.visible = true;
+  if (restore && cockpitReturnView) {
+    camera.up.copy(cockpitReturnView.up);
+    flyCameraTo(cockpitReturnView.camera, cockpitReturnView.target, 700);
+  }
+  cockpitReturnView = null;
+}
+
+function cockpitObjectName(obj) {
+  const d = obj.data;
+  if (d.catalogStar) return catalogStarName(d);
+  if (d.kind || d.bstar || d.exoplanetHost) return d.name;
+  return d.name ? `M${d.m} ${d.name}` : `M${d.m}`;
+}
+
+function cockpitObjectDescription(obj) {
+  const d = obj.data;
+  if (d.kind) {
+    if (d.kind === 'star') return 'Solar system centre';
+    if (d.kind === 'moon') return `Moon of ${solarBySlug[d.parent].data.name}`;
+    const range = Number.isFinite(obj.helioAU) ? ` · ${obj.helioAU.toFixed(obj.helioAU < 10 ? 2 : 1)} AU` : '';
+    return `${SOLAR_KINDS[d.kind].badge}${range}`;
+  }
+  if (d.bstar) return `Star · ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly`;
+  if (d.catalogStar) return `${d.spectral || 'Star'} · ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly`;
+  if (d.exoplanetHost) return `Planet host · ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly`;
+  return `${d.type} · ${fmtDistance(d.dist_kly)}`;
+}
+
+function cockpitObjectColor(obj) {
+  const d = obj.data;
+  if (d.kind || d.bstar || d.catalogStar || d.exoplanetHost) return d.color || '#8fd7ff';
+  return CATS[d.cat]?.color || '#8fd7ff';
+}
+
+function cockpitCandidateObjects() {
+  const candidates = [];
+  for (const obj of objects) {
+    if (obj.sprite.visible && visibleThrough(obj.sprite)) candidates.push(obj);
+  }
+  for (const obj of solarObjects) {
+    if (obj.sprite?.visible && visibleThrough(obj.sprite)) candidates.push(obj);
+  }
+  if (starsGroup.visible) {
+    for (const obj of starObjects) {
+      if (obj.sprite.visible && visibleThrough(obj.sprite)) candidates.push(obj);
+    }
+  }
+  if (catalogBrightGroup.visible) {
+    candidates.push(...catalogBrightObjects);
+  }
+  if (exoplanetGroup.visible) {
+    for (const obj of exoplanetObjects) {
+      if (obj.sprite.visible && visibleThrough(obj.sprite)) candidates.push(obj);
+    }
+  }
+  return candidates;
+}
+
+function projectCockpitObject(obj) {
+  cockpitToObject.copy(obj.pos).sub(camera.position);
+  const sceneRange = cockpitToObject.length();
+  if (sceneRange < 0.05) return null;
+  camera.getWorldDirection(cockpitForward);
+  if (cockpitToObject.dot(cockpitForward) <= 0) return null;
+
+  cockpitProjectPos.copy(obj.pos).project(camera);
+  if (cockpitProjectPos.z < -1 || cockpitProjectPos.z > 1) return null;
+
+  const x = (cockpitProjectPos.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-cockpitProjectPos.y * 0.5 + 0.5) * window.innerHeight;
+  const margin = 34;
+  if (x < margin || x > window.innerWidth - margin || y < margin || y > window.innerHeight - margin) return null;
+  return { obj, x, y, sceneRange };
+}
+
+function activateCockpitTarget(obj) {
+  tooltip.style.display = 'none';
+  select(obj, { fly: false });
+}
+
+function renderCockpitHud(now) {
+  if (now - cockpitHudLast < COCKPIT_HUD_REFRESH_MS) return;
+  cockpitHudLast = now;
+
+  const visible = cockpitCandidateObjects()
+    .map(projectCockpitObject)
+    .filter(Boolean)
+    .sort((a, b) => a.sceneRange - b.sceneRange);
+  const chosen = [];
+  const minGap = window.innerWidth < 720 ? COCKPIT_LABEL_MIN_GAP * 0.8 : COCKPIT_LABEL_MIN_GAP;
+  const maxLabels = window.innerWidth < 720 ? 8 : COCKPIT_LABEL_LIMIT;
+  for (const item of visible) {
+    if (chosen.some(other => Math.hypot(item.x - other.x, item.y - other.y) < minGap)) continue;
+    chosen.push(item);
+    if (chosen.length >= maxLabels) break;
+  }
+
+  const buttons = chosen.map(item => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cockpit-target';
+    btn.style.left = `${item.x}px`;
+    btn.style.top = `${item.y}px`;
+    btn.style.setProperty('--target-color', cockpitObjectColor(item.obj));
+
+    const pin = document.createElement('span');
+    pin.className = 'pin';
+    const name = document.createElement('b');
+    name.textContent = cockpitObjectName(item.obj);
+    const sub = document.createElement('span');
+    sub.textContent = cockpitObjectDescription(item.obj);
+    btn.append(pin, name, sub);
+    btn.setAttribute('aria-label', `${name.textContent}, ${sub.textContent}`);
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      activateCockpitTarget(item.obj);
+    });
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (e.detail === 0) activateCockpitTarget(item.obj);
+    });
+    return btn;
+  });
+  cockpitHud.replaceChildren(...buttons);
+  cockpitContacts.textContent = chosen.length ? `${chosen.length} labelled` : 'No labelled contacts';
+}
+
+function updateCockpitView(now, { pos, dir, up, side, ly, targetYears, elapsedYears }) {
+  const forwardLook = Math.max(38, Math.min(125, radiusFor(Math.max(warpEnterpriseTarget.dist_ly, 10)) * 0.72));
+  const camPos = pos.clone()
+    .addScaledVector(dir, 0.8)
+    .addScaledVector(up, 0.46)
+    .addScaledVector(side, 0.08 * Math.sin(now / 1200));
+  const targetPos = pos.clone()
+    .addScaledVector(dir, forwardLook)
+    .addScaledVector(up, 0.05)
+    .addScaledVector(side, 0.03 * Math.sin(now / 900));
+
+  camera.position.copy(camPos);
+  camera.up.copy(up);
+  camera.lookAt(targetPos);
+  controls.target.copy(targetPos);
+
+  const remainingLy = Math.max(0, warpEnterpriseTarget.dist_ly - ly);
+  cockpitTitle.textContent = `${warpEnterpriseTarget.name} approach`;
+  cockpitClock.textContent = `${formatWarpTravelTime(elapsedYears)} / ${formatWarpTravelTime(targetYears)}`;
+  cockpitCourse.textContent = warpEnterpriseTarget.name;
+  cockpitWarp.textContent = `${WARP_ENTERPRISE_LAYER.speedLyPerYear.toLocaleString()} ly/year`;
+  cockpitRange.textContent = `${formatWarpDistance(remainingLy)} remaining`;
+  renderCockpitHud(now);
+}
+
+cockpitExit.addEventListener('click', () => exitCockpitMode());
 
 async function loadConstellationData(kind) {
   if (constellationData[kind]) return constellationData[kind];
@@ -4455,9 +4871,12 @@ const catVisible = Object.fromEntries(Object.keys(CATS).map(k => [k, true]));
   enterpriseLabel.innerHTML = `<input type="checkbox">
     <span class="line-swatch" style="--swatch-color:${WARP_ENTERPRISE_LAYER.swatch}"></span>
     ${WARP_ENTERPRISE_LAYER.label}<span class="count">${WARP_ENTERPRISE_LAYER.speedLyPerYear.toLocaleString()} ly/yr</span>`;
-  enterpriseLabel.querySelector('input').addEventListener('change', e => {
+  enterpriseRouteLabel = enterpriseLabel;
+  enterpriseRouteInput = enterpriseLabel.querySelector('input');
+  enterpriseRouteInput.addEventListener('change', e => {
     warpEnterpriseGroup.visible = e.target.checked;
     enterpriseLabel.classList.toggle('off', !e.target.checked);
+    if (!e.target.checked && cockpitMode) exitCockpitMode({ restore: false });
     updateWarpEnterpriseReadout(0);
   });
   legend.appendChild(enterpriseLabel);
@@ -4473,10 +4892,15 @@ const catVisible = Object.fromEntries(Object.keys(CATS).map(k => [k, true]));
       <span id="warp-speed-readout"></span>
       <span id="warp-target-readout"></span>
       <span id="warp-clock-readout"></span>
+    </div>
+    <div class="warp-actions">
+      <button id="cockpit-enter" type="button">Bridge view</button>
     </div>`;
   warpControl.querySelector('select').addEventListener('change', e => {
     setWarpEnterpriseTarget(e.target.value);
   });
+  cockpitEnterBtn = warpControl.querySelector('#cockpit-enter');
+  cockpitEnterBtn.addEventListener('click', enterCockpitMode);
   legend.appendChild(warpControl);
   updateWarpEnterpriseReadout(0);
 
@@ -4600,13 +5024,15 @@ function deselect() {
 $('closepanel').addEventListener('click', deselect);
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (skyModal.classList.contains('open')) closeSkyView();
+  if (cockpitMode) exitCockpitMode();
+  else if (skyModal.classList.contains('open')) closeSkyView();
   else if (tonightModal.classList.contains('open')) closeTonight();
   else if (eclipseState.active) closeEclipseMode();
   else deselect();
 });
 
 $('resetview').addEventListener('click', () => {
+  exitCockpitMode({ restore: false });
   closeEclipseMode();
   deselect();
   flyTo(new THREE.Vector3(0, 0, 0), HOME_POS.length());
