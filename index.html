@@ -484,7 +484,7 @@
 
 <div id="header" class="overlay">
   <h1>Messier <span>Atlas</span></h1>
-  <p>All 110 Messier objects, the brightest stars, great comets, and the
+  <p>All 110 Messier objects, naked-eye and Hipparcos stars, great comets, and the
      five spacecraft leaving the Sun — mapped in 3D, log-compressed:
      each ring is 10&times; farther than the last.
      Zoom into the Sun and scrub time to watch everything move.</p>
@@ -617,6 +617,8 @@
 <script src="data/messier.js"></script>
 <script src="data/solar.js"></script>
 <script src="data/eclipse2026.js"></script>
+<script src="data/stars.js"></script>
+<script src="data/exoplanets.js"></script>
 <script src="data/extras.js"></script>
 
 <script type="importmap">
@@ -647,6 +649,10 @@ const SKY_SCAN_DAYS = 7;
 const SKY_SCAN_STEP_MIN = 10;
 const SKY_SLIDER_SPAN_MIN = 24 * 60;
 const SKY_MIN_DARK_SUN_ALT = -12;
+const CATALOG_SKY_MAG_LIMIT = 5.5;
+const CATALOG_NAKED_EYE_MAG = 6.5;
+const FEATURED_STAR_DEDUPE_SEP_DEG = 0.15;
+const FEATURED_STAR_DEDUPE_DIST_FRAC = 0.12;
 
 const AU_KM = 149597870.7;
 const LIGHT_S_PER_AU = 499.005;
@@ -1101,6 +1107,54 @@ function fmtAbsoluteMag(mag, distLy, digits = 2) {
   return `${absMag.toFixed(digits)} · ${fmtSunMultiple(sunBrightnessMultiple(absMag))}`;
 }
 
+const BV_COLOR_STOPS = [
+  [-0.35, [0.62, 0.72, 1.00]],
+  [ 0.00, [0.82, 0.88, 1.00]],
+  [ 0.45, [1.00, 0.98, 0.88]],
+  [ 0.90, [1.00, 0.82, 0.55]],
+  [ 1.45, [1.00, 0.62, 0.38]],
+  [ 2.00, [0.92, 0.36, 0.25]],
+];
+
+function colorFromBV(bv) {
+  if (!Number.isFinite(bv)) return new THREE.Color(0xe8efff);
+  const x = THREE.MathUtils.clamp(bv, BV_COLOR_STOPS[0][0], BV_COLOR_STOPS[BV_COLOR_STOPS.length - 1][0]);
+  for (let i = 1; i < BV_COLOR_STOPS.length; i++) {
+    const [v1, c1] = BV_COLOR_STOPS[i];
+    if (x <= v1) {
+      const [v0, c0] = BV_COLOR_STOPS[i - 1];
+      const t = (x - v0) / (v1 - v0);
+      return new THREE.Color(
+        THREE.MathUtils.lerp(c0[0], c1[0], t),
+        THREE.MathUtils.lerp(c0[1], c1[1], t),
+        THREE.MathUtils.lerp(c0[2], c1[2], t));
+    }
+  }
+  return new THREE.Color(0xe85c40);
+}
+
+function catalogStarName(d) {
+  return `HIP ${d.hip}`;
+}
+
+function catalogStarSubtitle(d) {
+  const bits = ['Hipparcos star'];
+  if (d.hd) bits.push(`HD ${d.hd}`);
+  if (d.spectral) bits.push(d.spectral);
+  return bits.join(' · ');
+}
+
+function exoplanetHostSubtitle(d) {
+  const planetText = d.planet_count === 1 ? '1 confirmed planet' : `${d.planet_count} confirmed planets`;
+  const methodText = d.methods?.length ? d.methods.join(', ') : 'confirmed exoplanet host';
+  return `${planetText} · ${methodText}`;
+}
+
+function exoplanetDiscoveryYears(d) {
+  if (!d.first_year) return '—';
+  return d.first_year === d.last_year ? String(d.first_year) : `${d.first_year}-${d.last_year}`;
+}
+
 function visibilityNote(m) {
   if (m <= 6.5) return 'naked eye';
   if (m <= 10) return 'binoculars';
@@ -1241,18 +1295,65 @@ function makeGlowTexture(color) {
   return new THREE.CanvasTexture(c);
 }
 
-function makeRingTexture() {
+function makeRingTexture(stroke = 'rgba(255,255,255,0.9)', shadow = 'rgba(160,200,255,0.8)') {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const ctx = c.getContext('2d');
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.strokeStyle = stroke;
   ctx.lineWidth = 4;
-  ctx.shadowColor = 'rgba(160,200,255,0.8)';
+  ctx.shadowColor = shadow;
   ctx.shadowBlur = 8;
   ctx.beginPath();
   ctx.arc(128, 128, 104, 0, Math.PI * 2);
   ctx.stroke();
   return new THREE.CanvasTexture(c);
+}
+
+function makePlanetHostTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+
+  const starGlow = ctx.createRadialGradient(54, 68, 0, 54, 68, 38);
+  starGlow.addColorStop(0, 'rgba(255,255,255,1)');
+  starGlow.addColorStop(0.18, 'rgba(255,223,135,0.95)');
+  starGlow.addColorStop(0.48, 'rgba(255,185,80,0.32)');
+  starGlow.addColorStop(1, 'rgba(255,185,80,0)');
+  ctx.fillStyle = starGlow;
+  ctx.fillRect(16, 30, 76, 76);
+
+  ctx.fillStyle = 'rgba(255,246,210,0.98)';
+  ctx.beginPath();
+  ctx.arc(54, 68, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(86, 45);
+  ctx.rotate(-0.35);
+  ctx.strokeStyle = 'rgba(190,220,255,0.9)';
+  ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 13, 5.5, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  const planetGlow = ctx.createRadialGradient(86, 45, 0, 86, 45, 12);
+  planetGlow.addColorStop(0, 'rgba(210,232,255,1)');
+  planetGlow.addColorStop(0.55, 'rgba(105,160,255,0.75)');
+  planetGlow.addColorStop(1, 'rgba(105,160,255,0)');
+  ctx.fillStyle = planetGlow;
+  ctx.beginPath();
+  ctx.arc(86, 45, 12, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(186,216,255,0.98)';
+  ctx.beginPath();
+  ctx.arc(86, 45, 5.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
 }
 
 function makeTextSprite(text, { size = 26, color = '#9fb4d8', weight = 500, opacity = 1, unit = 0.16 } = {}) {
@@ -2131,6 +2232,8 @@ function skyPoint(horizontal, cx, cy, radius, { clamp = false } = {}) {
 
 function displayName(data) {
   if (data.kind || data.bstar) return data.name;
+  if (data.catalogStar) return catalogStarName(data);
+  if (data.exoplanetHost) return data.name;
   return `M${data.m}${data.name ? ` · ${data.name}` : ''}`;
 }
 
@@ -2165,45 +2268,6 @@ controls.zoomToCursor = true;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.35;
 controls.addEventListener('start', () => { controls.autoRotate = false; });
-
-/* ---------- starfield ---------- */
-
-function addStars(count, { band = false, size = 1.6, opacity = 0.85 } = {}) {
-  const pos = new Float32Array(count * 3);
-  const col = new Float32Array(count * 3);
-  const tints = [[1, 1, 1], [0.78, 0.85, 1], [1, 0.93, 0.78], [1, 0.82, 0.7]];
-  for (let i = 0; i < count; i++) {
-    let x, y, z;
-    if (band) {
-      // concentrated near the galactic plane (scene y ~ 0)
-      const lon = Math.random() * Math.PI * 2;
-      let lat = 0;
-      for (let k = 0; k < 4; k++) lat += Math.random() - 0.5;   // ~gaussian
-      lat *= 0.16;
-      y = Math.sin(lat); const cl = Math.cos(lat);
-      x = cl * Math.cos(lon); z = cl * Math.sin(lon);
-    } else {
-      do { x = Math.random() * 2 - 1; y = Math.random() * 2 - 1; z = Math.random() * 2 - 1; }
-      while (x * x + y * y + z * z > 1 || x * x + y * y + z * z < 0.01);
-      const n = 1 / Math.hypot(x, y, z); x *= n; y *= n; z *= n;
-    }
-    const r = 2800 + Math.random() * 1400;
-    pos.set([x * r, y * r, z * r], i * 3);
-    const t = tints[(Math.random() * tints.length) | 0];
-    const b = 0.5 + Math.random() * 0.5;
-    col.set([t[0] * b, t[1] * b, t[2] * b], i * 3);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({
-    size, sizeAttenuation: false, vertexColors: true,
-    transparent: true, opacity, depthWrite: false,
-  });
-  scene.add(new THREE.Points(geo, mat));
-}
-addStars(5200);
-addStars(5200, { band: true, size: 1.9, opacity: 0.55 });
 
 /* ---------- distance rings ---------- */
 
@@ -3095,6 +3159,216 @@ const starsBySlug = {};
   }
 }
 
+/* ---------- Hipparcos catalog star layers ---------- */
+
+const catalogBrightGroup = new THREE.Group();
+const catalogHipparcosGroup = new THREE.Group();
+scene.add(catalogBrightGroup, catalogHipparcosGroup);
+
+const catalogBrightObjects = [];
+const catalogBrightBySlug = {};
+const catalogBrightSkyObjects = [];
+const catalogStarSizeLayers = [];
+
+function makeCatalogStarMaterial(opacity) {
+  return new THREE.ShaderMaterial({
+    uniforms: { opacity: { value: opacity } },
+    vertexShader: `
+      attribute float pointSize;
+      attribute vec3 color;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = pointSize;
+      }
+    `,
+    fragmentShader: `
+      uniform float opacity;
+      varying vec3 vColor;
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+        float a = (1.0 - smoothstep(0.08, 0.5, d)) * opacity;
+        gl_FragColor = vec4(vColor, a);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+}
+
+function catalogFluxFromMag(mag, referenceMag = CATALOG_NAKED_EYE_MAG) {
+  return 10 ** (-0.4 * (mag - referenceMag));
+}
+
+function catalogStarAppSize(mag, layer) {
+  const flux = catalogFluxFromMag(mag);
+  return layer === 'bright'
+    ? THREE.MathUtils.clamp(0.72 + 1.34 * flux ** 0.23, 1.45, 9.2)
+    : THREE.MathUtils.clamp(0.85 + 1.35 * flux ** 0.18, 1.0, 2.6);
+}
+
+function catalogStarIntensity(mag, layer) {
+  const flux = catalogFluxFromMag(mag);
+  return layer === 'bright'
+    ? THREE.MathUtils.clamp(0.16 + 0.48 * flux ** 0.18, 0.18, 1.0)
+    : THREE.MathUtils.clamp(0.10 + 0.42 * flux ** 0.22, 0.12, 0.52);
+}
+
+function catalogStarAbsSize(mag, distLy, layer) {
+  const absMag = absoluteMag(mag, distLy);
+  return THREE.MathUtils.clamp(3.5 - absMag * 0.22, 0.8, layer === 'bright' ? 8.2 : 5.6);
+}
+
+function makeCatalogStarData(row, layer) {
+  const [hip, ra, dec, distLy, mag, bv, hd, spectral] = row;
+  const color = colorFromBV(bv);
+  return {
+    catalogStar: layer,
+    hip,
+    hd,
+    name: `HIP ${hip}`,
+    slug: `hip-${hip}`,
+    ra,
+    dec,
+    dist_ly: distLy,
+    mag,
+    bv,
+    spectral: spectral || '',
+    color: `#${color.getHexString()}`,
+    wiki: `https://simbad.u-strasbg.fr/simbad/sim-id?Ident=HIP%20${hip}`,
+  };
+}
+
+function isFeaturedStarDuplicate(row) {
+  const [, ra, dec, distLy] = row;
+  return window.EXTRAS.stars.some(star => {
+    const distFrac = Math.abs(distLy - star.dist_ly) / Math.max(distLy, star.dist_ly);
+    return distFrac <= FEATURED_STAR_DEDUPE_DIST_FRAC &&
+      angularSeparationDeg({ ra, dec }, star) <= FEATURED_STAR_DEDUPE_SEP_DEG;
+  });
+}
+
+function makeCatalogStarPointLayer(rows, layer, { pickable = false, opacity = 0.8 } = {}) {
+  const positions = new Float32Array(rows.length * 3);
+  const colors = new Float32Array(rows.length * 3);
+  const appSizes = new Float32Array(rows.length);
+  const absSizes = new Float32Array(rows.length);
+  const drawSizes = new Float32Array(rows.length);
+  const objectsForLayer = pickable ? [] : null;
+
+  rows.forEach((row, i) => {
+    const [hip, ra, dec, distLy, mag, bv] = row;
+    const pos = radecToScene(ra, dec, radiusFor(distLy));
+    positions.set([pos.x, pos.y, pos.z], i * 3);
+
+    const baseColor = colorFromBV(bv);
+    const color = baseColor.clone();
+    const intensity = catalogStarIntensity(mag, layer);
+    color.multiplyScalar(intensity);
+    colors.set([color.r, color.g, color.b], i * 3);
+
+    const appSize = catalogStarAppSize(mag, layer);
+    const absSize = catalogStarAbsSize(mag, distLy, layer);
+    appSizes[i] = appSize;
+    absSizes[i] = absSize;
+    drawSizes[i] = appSize;
+
+    if (pickable) {
+      const data = makeCatalogStarData(row, layer);
+      data.color = `#${baseColor.getHexString()}`;
+      const obj = {
+        data,
+        pos,
+        scale: appSize,
+        appScale: appSize,
+        absScale: absSize,
+        flyDist: 72,
+        catalogIndex: i,
+      };
+      objectsForLayer.push(obj);
+      catalogBrightBySlug[data.slug] = obj;
+      if (data.mag <= CATALOG_SKY_MAG_LIMIT) catalogBrightSkyObjects.push(obj);
+    }
+  });
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('pointSize', new THREE.BufferAttribute(drawSizes, 1));
+  const points = new THREE.Points(geo, makeCatalogStarMaterial(opacity));
+  if (objectsForLayer) points.userData.catalogObjects = objectsForLayer;
+  catalogStarSizeLayers.push({ geo, appSizes, absSizes, objects: objectsForLayer });
+  return { points, objects: objectsForLayer || [] };
+}
+
+const starCatalog = window.STAR_CATALOG || { bright: [], hipparcos: [], meta: {} };
+const catalogBrightRows = starCatalog.bright.filter(row => !isFeaturedStarDuplicate(row));
+const catalogHipparcosRows = starCatalog.hipparcos.filter(row => !isFeaturedStarDuplicate(row));
+{
+  const brightLayer = makeCatalogStarPointLayer(catalogBrightRows, 'bright', { pickable: true, opacity: 0.82 });
+  catalogBrightGroup.add(brightLayer.points);
+  catalogBrightObjects.push(...brightLayer.objects);
+
+  const hipparcosLayer = makeCatalogStarPointLayer(catalogHipparcosRows, 'hipparcos', { opacity: 0.66 });
+  catalogHipparcosGroup.add(hipparcosLayer.points);
+}
+
+/* ---------- exoplanet host stars ---------- */
+
+const exoplanetGroup = new THREE.Group();
+scene.add(exoplanetGroup);
+exoplanetGroup.visible = false;
+const exoplanetObjects = [];
+const exoplanetBySlug = {};
+
+function slugifyId(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+{
+  const hostRows = window.EXOPLANET_HOSTS?.hosts || [];
+  const hostTexture = makePlanetHostTexture();
+  for (const row of hostRows) {
+    const [name, ra, dec, distLy, vmag, planetCount, planets, methods, firstYear, lastYear] = row;
+    const data = {
+      exoplanetHost: true,
+      name,
+      slug: `exo-${slugifyId(name)}`,
+      ra,
+      dec,
+      dist_ly: distLy,
+      mag: vmag,
+      planet_count: planetCount,
+      planets,
+      methods,
+      first_year: firstYear,
+      last_year: lastYear,
+      color: '#ffdf87',
+      wiki: `https://exoplanetarchive.ipac.caltech.edu/overview/${encodeURIComponent(name)}`,
+    };
+    const pos = radecToScene(ra, dec, radiusFor(distLy));
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: hostTexture,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+    }));
+    const s = THREE.MathUtils.clamp(3.9 + Math.log2(planetCount + 1) * 0.75, 4.4, 7.2);
+    sprite.scale.set(s, s, 1);
+    sprite.position.copy(pos);
+    exoplanetGroup.add(sprite);
+
+    const obj = { data, sprite, pos, scale: s, appScale: s, absScale: s, flyDist: 86 };
+    sprite.userData.obj = obj;
+    exoplanetObjects.push(obj);
+    exoplanetBySlug[data.slug] = obj;
+  }
+}
+
 // Resize the deep-sky and star sprites by intrinsic brightness (absolute
 // magnitude) instead of brightness as seen from Earth: red dwarfs shrink to
 // specks, supergiants and galaxies balloon.
@@ -3104,6 +3378,18 @@ function setIntrinsicSizing(on) {
     o.scale = s;
     o.sprite.scale.set(s, s, 1);
     if (o.label) o.label.position.copy(o.pos).add(new THREE.Vector3(0, s * 0.5 + 1.9, 0));
+  }
+  for (const layer of catalogStarSizeLayers) {
+    const target = on ? layer.absSizes : layer.appSizes;
+    const attr = layer.geo.getAttribute('pointSize');
+    attr.array.set(target);
+    attr.needsUpdate = true;
+    if (layer.objects) {
+      for (const obj of layer.objects) {
+        const s = target[obj.catalogIndex];
+        obj.scale = s;
+      }
+    }
   }
 }
 
@@ -3332,7 +3618,7 @@ function setNowControlForSelection(obj) {
   nowToggleLabel.classList.add('unavailable');
   nowToggleText.textContent = 'Now position not available';
 
-  if (!obj || obj.data.kind || obj.data.bstar) {
+  if (!obj || obj.data.kind || obj.data.bstar || obj.data.catalogStar || obj.data.exoplanetHost) {
     nowToggleLabel.classList.remove('unavailable');
     nowToggleText.textContent = 'Show estimated now position';
     return null;
@@ -3646,6 +3932,41 @@ function showSkyObjectDetails(obj, horizontal = null, date = null) {
     return;
   }
 
+  if (d.catalogStar) {
+    skyObjectCard.innerHTML = `
+      <span class="badge" style="background:${d.color}">STAR</span>
+      <h3>${catalogStarName(d)}</h3>
+      <div class="sub">${catalogStarSubtitle(d)}</div>
+      <dl>
+        <dt>Altitude</dt><dd>${h.alt.toFixed(0)}°</dd>
+        <dt>Azimuth</dt><dd>${h.az.toFixed(0)}° ${azLabel(h.az)}</dd>
+        <dt>Distance</dt><dd>${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly</dd>
+        ${tipDt('Magnitude')}<dd title="${MAG_TIPS['Magnitude']}">${d.mag.toFixed(2)}</dd>
+        <dt>Position</dt><dd>${fmtRaDec(d.ra, d.dec)}</dd>
+      </dl>
+      <div class="note">${fmtLightTime(d.dist_ly / 1000)}</div>`;
+    skyObjectCard.classList.add('show');
+    return;
+  }
+
+  if (d.exoplanetHost) {
+    skyObjectCard.innerHTML = `
+      <span class="badge" style="background:${d.color}">PLANET HOST</span>
+      <h3>${d.name}</h3>
+      <div class="sub">${exoplanetHostSubtitle(d)}</div>
+      <dl>
+        <dt>Altitude</dt><dd>${h.alt.toFixed(0)}°</dd>
+        <dt>Azimuth</dt><dd>${h.az.toFixed(0)}° ${azLabel(h.az)}</dd>
+        <dt>Distance</dt><dd>${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly</dd>
+        <dt>Planets</dt><dd>${d.planet_count.toLocaleString()}</dd>
+        ${Number.isFinite(d.mag) ? `${tipDt('Magnitude')}<dd title="${MAG_TIPS['Magnitude']}">${d.mag.toFixed(2)}</dd>` : ''}
+        <dt>Position</dt><dd>${fmtRaDec(d.ra, d.dec)}</dd>
+      </dl>
+      <div class="note">${d.planets?.length ? d.planets.join(', ') : 'Confirmed exoplanet host'}.</div>`;
+    skyObjectCard.classList.add('show');
+    return;
+  }
+
   const meta = CATS[d.cat];
   skyObjectCard.innerHTML = `
     <img src="${d.img}" alt="${d.name || `M${d.m}`}" referrerpolicy="no-referrer">
@@ -3775,6 +4096,23 @@ function renderSkyChart() {
   }
   ctx.globalAlpha = 1;
 
+  const catalogStarsVisible = [];
+  for (const obj of catalogBrightSkyObjects) {
+    if (obj === selectedObj) continue;
+    const horizontal = objectHorizontal(obj.data, date, location);
+    if (horizontal.alt <= 0) continue;
+    const point = skyPoint(horizontal, cx, cy, radius);
+    if (!point) continue;
+    catalogStarsVisible.push({ obj, horizontal, point });
+    const size = THREE.MathUtils.clamp(2.8 - obj.data.mag * 0.28, 0.8, 2.8);
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = obj.data.color;
+    ctx.globalAlpha = 0.72;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
   const solarVisible = [];
   for (const obj of solarChartBodies) {
     if (obj === selectedObj) continue;
@@ -3821,6 +4159,15 @@ function renderSkyChart() {
       x: item.point.x,
       y: item.point.y,
       hitRadius: 10,
+    });
+  }
+  for (const item of catalogStarsVisible) {
+    skyHitTargets.push({
+      obj: item.obj,
+      horizontal: item.horizontal,
+      x: item.point.x,
+      y: item.point.y,
+      hitRadius: 8,
     });
   }
   for (const item of solarVisible) {
@@ -3971,13 +4318,46 @@ const catVisible = Object.fromEntries(Object.keys(CATS).map(k => [k, true]));
   const starsLabel = document.createElement('label');
   starsLabel.innerHTML = `<input type="checkbox" checked>
     <span class="dot" style="background:#fff2cf"></span>
-    Bright stars<span class="count">${starObjects.length}</span>`;
+    Featured stars<span class="count">${starObjects.length}</span>`;
   starsLabel.querySelector('input').addEventListener('change', e => {
     starsGroup.visible = e.target.checked;
     starsLabel.classList.toggle('off', !e.target.checked);
     if (!e.target.checked && selected?.data.bstar) deselect();
   });
   legend.appendChild(starsLabel);
+
+  const catalogBrightLabel = document.createElement('label');
+  catalogBrightLabel.innerHTML = `<input type="checkbox" checked>
+    <span class="dot" style="background:#e9f1ff"></span>
+    Naked-eye stars<span class="count">${catalogBrightObjects.length.toLocaleString()}</span>`;
+  catalogBrightLabel.querySelector('input').addEventListener('change', e => {
+    catalogBrightGroup.visible = e.target.checked;
+    catalogBrightLabel.classList.toggle('off', !e.target.checked);
+    if (!e.target.checked && selected?.data.catalogStar === 'bright') deselect();
+  });
+  legend.appendChild(catalogBrightLabel);
+
+  const catalogHipparcosLabel = document.createElement('label');
+  catalogHipparcosLabel.innerHTML = `<input type="checkbox" checked>
+    <span class="dot" style="background:#9db5ff"></span>
+    Hipparcos remainder<span class="count">${catalogHipparcosRows.length.toLocaleString()}</span>`;
+  catalogHipparcosLabel.querySelector('input').addEventListener('change', e => {
+    catalogHipparcosGroup.visible = e.target.checked;
+    catalogHipparcosLabel.classList.toggle('off', !e.target.checked);
+  });
+  legend.appendChild(catalogHipparcosLabel);
+
+  const exoplanetLabel = document.createElement('label');
+  exoplanetLabel.classList.add('off');
+  exoplanetLabel.innerHTML = `<input type="checkbox">
+    <span class="dot" style="background:#ffdf87"></span>
+    Planet hosts<span class="count">${exoplanetObjects.length.toLocaleString()}</span>`;
+  exoplanetLabel.querySelector('input').addEventListener('change', e => {
+    exoplanetGroup.visible = e.target.checked;
+    exoplanetLabel.classList.toggle('off', !e.target.checked);
+    if (!e.target.checked && selected?.data.exoplanetHost) deselect();
+  });
+  legend.appendChild(exoplanetLabel);
 
   const intrinsicLabel = document.createElement('label');
   intrinsicLabel.classList.add('sky-option', 'off');
@@ -4278,15 +4658,19 @@ function solarLightNote(d, rd, obj) {
 }
 
 function fillPanel(d) {
-  const meta = d.kind ? SOLAR_KINDS[d.kind] : d.bstar ? { badge: 'Star' } : CATS[d.cat];
+  const meta = d.kind ? SOLAR_KINDS[d.kind] :
+    d.exoplanetHost ? { badge: 'Planet host' } :
+    (d.bstar || d.catalogStar) ? { badge: 'Star' } : CATS[d.cat];
   panelImg.style.visibility = 'hidden';
   panelImg.style.display = d.img ? '' : 'none';
   if (d.img) panelImg.src = d.img;
   panelImg.alt = d.name || `M${d.m}`;
   $('p-badge').textContent = meta.badge.toUpperCase();
-  $('p-badge').style.background = (d.kind || d.bstar) ? d.color : meta.color;
+  $('p-badge').style.background = (d.kind || d.bstar || d.catalogStar || d.exoplanetHost) ? d.color : meta.color;
   $('p-wiki').href = d.wiki;
-  nowControlBox.style.display = (d.kind || d.bstar) ? 'none' : '';
+  $('p-wiki').innerHTML = d.catalogStar ? 'Open in SIMBAD &rarr;' :
+    d.exoplanetHost ? 'Open in NASA Exoplanet Archive &rarr;' : 'Read on Wikipedia &rarr;';
+  nowControlBox.style.display = (d.kind || d.bstar || d.catalogStar || d.exoplanetHost) ? 'none' : '';
 
   if (d.kind) {
     const obj = solarBySlug[d.slug];
@@ -4329,6 +4713,37 @@ function fillPanel(d) {
       ['Position', fmtRaDec(d.ra, d.dec)],
     ]);
     $('p-light').textContent = fmtLightTime(d.dist_ly / 1000);
+  } else if (d.catalogStar) {
+    $('p-name').textContent = catalogStarName(d);
+    $('p-desig').textContent = catalogStarSubtitle(d);
+    const rows = [
+      ['Type', 'Star'],
+      ['Distance', `${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} light-years`],
+      ['Magnitude', d.mag.toFixed(2)],
+      ['Absolute mag', fmtAbsoluteMag(d.mag, d.dist_ly, 2)],
+    ];
+    if (Number.isFinite(d.bv)) rows.push(['B-V color', d.bv.toFixed(2)]);
+    if (d.spectral) rows.push(['Spectral type', d.spectral]);
+    rows.push(['Position', fmtRaDec(d.ra, d.dec)]);
+    if (d.hd) rows.push(['HD', d.hd.toLocaleString()]);
+    setPanelRows(rows);
+    $('p-light').textContent = fmtLightTime(d.dist_ly / 1000);
+  } else if (d.exoplanetHost) {
+    $('p-name').textContent = d.name;
+    $('p-desig').textContent = exoplanetHostSubtitle(d);
+    const rows = [
+      ['Type', 'Confirmed exoplanet host'],
+      ['Distance', `${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} light-years`],
+      ['Planets', d.planet_count.toLocaleString()],
+      ['Discovered', exoplanetDiscoveryYears(d)],
+      ['Methods', d.methods?.length ? d.methods.join(', ') : '—'],
+      ['Position', fmtRaDec(d.ra, d.dec)],
+    ];
+    if (Number.isFinite(d.mag)) rows.splice(4, 0, ['Magnitude', d.mag.toFixed(2)]);
+    setPanelRows(rows);
+    const planetList = d.planets?.length ? d.planets.join(', ') : 'confirmed planets';
+    const more = d.planet_count > d.planets.length ? `, plus ${d.planet_count - d.planets.length} more` : '';
+    $('p-light').textContent = `${planetList}${more}. ${fmtLightTime(d.dist_ly / 1000)}`;
   } else {
     $('p-name').textContent = d.name || `Messier ${d.m}`;
     $('p-desig').textContent = `M${d.m}` + (d.ngc && d.ngc !== '–' ? ` · ${d.ngc}` : '');
@@ -4359,13 +4774,34 @@ function matches(q) {
     const d = o.data;
     return d.name.toLowerCase().includes(q) || d.const.toLowerCase().includes(q);
   });
+  const catalogStars = catalogBrightObjects.filter(o => {
+    const d = o.data;
+    const terms = [
+      `hip ${d.hip}`,
+      `hip${d.hip}`,
+      String(d.hip),
+      d.hd ? `hd ${d.hd}` : '',
+      d.hd ? `hd${d.hd}` : '',
+      d.spectral || '',
+    ].join(' ').toLowerCase();
+    return terms.includes(q);
+  });
+  const exoplanets = exoplanetObjects.filter(o => {
+    const d = o.data;
+    const terms = [
+      d.name,
+      ...(d.planets || []),
+      ...(d.methods || []),
+    ].join(' ').toLowerCase();
+    return terms.includes(q);
+  });
   const messier = objects.filter(o => {
     const d = o.data;
     return (`m${d.m}` === q) || (`m${d.m}`).startsWith(q) || String(d.m) === q ||
       d.name.toLowerCase().includes(q) || d.type.toLowerCase().includes(q) ||
       d.const.toLowerCase().includes(q) || d.ngc.toLowerCase().includes(q);
   });
-  return [...solar, ...stars, ...messier].slice(0, 8);
+  return [...solar, ...stars, ...exoplanets, ...catalogStars, ...messier].slice(0, 8);
 }
 
 function renderSuggestions(list) {
@@ -4381,6 +4817,12 @@ function renderSuggestions(list) {
       div.innerHTML = `<b>${d.name}</b><div class="sub">${sub}</div>`;
     } else if (d.bstar) {
       div.innerHTML = `<b>${d.name}</b><div class="sub">Star · ${d.const} ·
+        ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly</div>`;
+    } else if (d.catalogStar) {
+      div.innerHTML = `<b>${catalogStarName(d)}</b><div class="sub">${catalogStarSubtitle(d)} ·
+        ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly</div>`;
+    } else if (d.exoplanetHost) {
+      div.innerHTML = `<b>${d.name}</b><div class="sub">${exoplanetHostSubtitle(d)} ·
         ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly</div>`;
     } else {
       div.innerHTML = `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}
@@ -4417,26 +4859,36 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 let hovered = null;
 let downAt = null;
+raycaster.params.Points.threshold = 2.2;
 
 function visibleThrough(node) {
   for (let n = node; n; n = n.parent) if (n.visible === false) return false;
   return true;
 }
 
+function objFromHit(hit) {
+  if (hit.object.userData.obj) return hit.object.userData.obj;
+  const catalogObjects = hit.object.userData.catalogObjects;
+  if (catalogObjects && Number.isInteger(hit.index)) return catalogObjects[hit.index];
+  return null;
+}
+
 function pick(e) {
   pointer.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects(
-    [objectsGroup, planetsGroup, moonsGroup, cometsGroup, craftGroup, starsGroup, sunSprite], true)
-    .filter(h => h.object.userData.obj && visibleThrough(h.object));
+  const pickRoots = [objectsGroup, planetsGroup, moonsGroup, cometsGroup, craftGroup, starsGroup, catalogBrightGroup, sunSprite];
+  if (exoplanetGroup.visible) pickRoots.splice(pickRoots.length - 1, 0, exoplanetGroup);
+  const hits = raycaster.intersectObjects(pickRoots, true)
+    .map(h => ({ ...h, obj: objFromHit(h) }))
+    .filter(h => h.obj && visibleThrough(h.object));
   if (!hits.length) return null;
   // moons sit inside their planet's larger glow quad — prefer them on near-ties
   for (const h of hits) {
-    if (h.object.userData.obj.data.kind === 'moon' && h.distance - hits[0].distance < 0.6) {
-      return h.object.userData.obj;
+    if (h.obj.data.kind === 'moon' && h.distance - hits[0].distance < 0.6) {
+      return h.obj;
     }
   }
-  return hits[0].object.userData.obj;
+  return hits[0].obj;
 }
 
 canvas.addEventListener('pointermove', e => {
@@ -4446,12 +4898,18 @@ canvas.addEventListener('pointermove', e => {
   if (hit) {
     const d = hit.data;
     const sub = d.bstar ? `Star · ${d.const} · ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly` :
+      d.catalogStar ? `${catalogStarSubtitle(d)} · ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly` :
+      d.exoplanetHost ? `${exoplanetHostSubtitle(d)} · ${d.dist_ly.toLocaleString(undefined, { maximumFractionDigits: 1 })} ly` :
       !d.kind ? `${d.type} · ${fmtDistance(d.dist_kly)}` :
       d.kind === 'moon' ? `Moon of ${solarBySlug[d.parent].data.name}` :
       d.kind === 'star' ? 'Our star · the centre of this map' :
       `${SOLAR_KINDS[d.kind].badge} · ${hit.helioAU.toFixed(2)} AU from Sun`;
     tooltip.innerHTML = (d.kind || d.bstar)
       ? `<b>${d.name}</b><div class="sub">${sub}</div>`
+      : d.catalogStar
+        ? `<b>${catalogStarName(d)}</b><div class="sub">${sub}</div>`
+      : d.exoplanetHost
+        ? `<b>${d.name}</b><div class="sub">${sub}</div>`
       : `<b>M${d.m}</b>${d.name ? ' — ' + d.name : ''}<div class="sub">${sub}</div>`;
     tooltip.style.display = 'block';
     tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth - 250) + 'px';
@@ -4700,7 +5158,7 @@ tonightLocateBtn.addEventListener('click', async () => {
     const obj = objects.find(o => o.data.m === Number(m[1]));
     if (obj) select(obj, { fly: true });
   } else {
-    const obj = solarBySlug[hash] || starsBySlug[hash];
+    const obj = solarBySlug[hash] || starsBySlug[hash] || catalogBrightBySlug[hash] || exoplanetBySlug[hash];
     if (obj) select(obj, { fly: true });
   }
 }
@@ -4774,6 +5232,8 @@ window.addEventListener('resize', () => {
 // debug/automation handle
 window.__ATLAS = {
   objects, solarObjects, solarBySlug, starObjects, starsBySlug,
+  starCatalog, catalogBrightObjects, catalogBrightBySlug, catalogBrightGroup, catalogHipparcosGroup,
+  exoplanetObjects, exoplanetBySlug, exoplanetGroup,
   camera, controls, select, deselect, skyGroupState, boundaryState, THREE,
   galacticOutlineGroup, warpEnterpriseGroup, WARP_TARGETS, setWarpEnterpriseTarget,
   setSolarJD, getSolarJD: () => solarJD, setTdPlaying, openTonight,

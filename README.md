@@ -25,6 +25,10 @@ pole in the direction of the Virgo Cluster.
   (Mallama & Hilton planetary phase laws, Saturn's real ring tilt, lunar
   phase, comet brightness curves) in the info panel, sky chart, and Tonight
   list — scrub time to watch Mars brighten toward opposition
+- Hipparcos star layers: a naked-eye subset (V ≤ 6.5) and the fainter
+  usable-distance Hipparcos remainder, with separate legend toggles
+- Optional NASA Exoplanet Archive planet-host overlay for stars with confirmed
+  discovered planets
 - A "True brightness sizing" legend toggle resizes stars and deep-sky objects
   by absolute magnitude instead of how bright they look from Earth — Sirius
   shrinks to an ordinary star while Rigel, Deneb, and the galaxies balloon
@@ -40,7 +44,7 @@ pole in the direction of the Virgo Cluster.
 - Messier objects in the sky chart are clickable for an in-place detail readout
 - Deep links: `index.html#m31` opens with Andromeda selected, `#jupiter` or
   `#titan` a solar-system body
-- Sun and Galactic Centre markers, procedural starfield with a Milky Way band
+- Sun and Galactic Centre markers, plus optional galactic-outline orientation layers
 - **The solar system**: zoom into the Sun (or click it) and the planets, Pluto,
   and eight major moons appear at their real positions for the current date,
   on a nested log-AU scale — all clickable like any other object, with orbits,
@@ -92,6 +96,24 @@ City lookup for the sky chart uses the no-key
 The chart computes local altitude/azimuth in the browser from each object's
 RA/Dec and the selected time/location.
 
+`data/stars.js` holds the generated Hipparcos star layers. It is built from
+CDS/VizieR catalogue I/239 (`hip_main.dat`), keeps stars with positive parallax
+and relative parallax error ≤ 50%, then splits the usable-distance stars into a
+naked-eye layer (`V ≤ 6.5`) and the fainter Hipparcos remainder:
+
+```
+python tools/build_stars.py
+```
+
+`data/exoplanets.js` holds confirmed exoplanet host stars grouped from NASA
+Exoplanet Archive PSCompPars rows. It keeps systems with sky position and
+distance, then stores host position, distance, apparent V magnitude where
+available, planet count, discovery methods, and planet names:
+
+```
+python tools/build_exoplanets.py
+```
+
 `data/solar.js` holds the solar system: facts and images plus JPL's
 approximate Keplerian elements (Table 1, valid 1800–2050) for the planets and
 Pluto, evaluated in the browser for the current date — geocentric positions
@@ -113,13 +135,17 @@ is enlarged visually so it can be read on the log-compressed atlas.
 | --------------------- | ------------------------------------------------ |
 | `index.html`          | The whole app: scene, UI, styles, logic          |
 | `data/messier.js`     | Generated catalogue (`window.MESSIER = […]`)     |
+| `data/stars.js`       | Generated Hipparcos star layers (`window.STAR_CATALOG`) |
+| `data/exoplanets.js`  | Generated exoplanet host stars (`window.EXOPLANET_HOSTS`) |
 | `data/solar.js`       | Generated solar system (`window.SOLAR = {…}`)    |
 | `data/eclipse2026.js` | 2026 total solar eclipse path and location presets |
 | `tools/build_data.py` | Regenerates `data/messier.js` from Wikipedia     |
+| `tools/build_stars.py`| Regenerates `data/stars.js` from CDS/VizieR I/239 |
+| `tools/build_exoplanets.py` | Regenerates `data/exoplanets.js` from NASA Exoplanet Archive |
 | `tools/build_solar.py`| Regenerates `data/solar.js` (Wikipedia + JPL)    |
 
 ## Ideas for later
 
-- NGC catalogue or bright-star (Gaia/Hipparcos) layers
+- NGC catalogue or deeper Gaia-derived star tiles
 - A true-scale mode with camera flythrough
 - Distance-uncertainty visualization (some Messier distances are rough)
