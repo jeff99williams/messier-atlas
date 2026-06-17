@@ -279,12 +279,12 @@
     position: absolute; left: 50%; bottom: calc(18px + 72px);
     transform: translateX(-50%);
     z-index: 4;
-    width: min(560px, calc(100vw - 44px));
-    display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+    width: min(760px, calc(100vw - 44px));
+    display: grid; grid-template-columns: auto minmax(220px, 1fr) auto auto; gap: 10px; align-items: center;
     padding: 10px 12px;
     pointer-events: auto;
   }
-  #cockpit-engage {
+  .cockpit-action {
     min-width: 92px; padding: 8px 12px;
     border: 1px solid rgba(143, 215, 255, 0.44);
     border-radius: 8px;
@@ -292,9 +292,14 @@
     color: #e7fbff; cursor: pointer; font-size: 12px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.7px;
   }
-  #cockpit-engage:hover {
+  .cockpit-action:hover {
     background: rgba(143, 215, 255, 0.2);
     border-color: rgba(143, 215, 255, 0.68);
+  }
+  .cockpit-action.active {
+    border-color: rgba(255, 211, 137, 0.58);
+    background: rgba(255, 211, 137, 0.16);
+    color: #ffe7ad;
   }
   #cockpit.open.engaged #cockpit-engage {
     border-color: rgba(255, 211, 137, 0.58);
@@ -757,9 +762,11 @@
     #cockpit-exit { min-height: 34px; }
     .cockpit-controls {
       left: 12px; right: 12px; bottom: 92px; width: auto; transform: none;
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px; padding: 9px 10px;
     }
+    .cockpit-warp-control { grid-column: 1 / -1; }
+    .cockpit-action { min-width: 0; padding-inline: 9px; }
     #cockpit-warp-factor { font-size: 11px; }
     #cockpit-hud { inset: 78px 8px 166px; }
     .cockpit-console {
@@ -819,12 +826,14 @@
   <div class="cockpit-reticle"></div>
   <div id="cockpit-hud"></div>
   <div class="cockpit-controls">
-    <button id="cockpit-engage" type="button">Engage</button>
+    <button id="cockpit-engage" class="cockpit-action" type="button">Engage</button>
     <div class="cockpit-warp-control">
       <label for="cockpit-warp-slider">Warp factor</label>
       <output id="cockpit-warp-factor" for="cockpit-warp-slider">Warp 1</output>
       <input id="cockpit-warp-slider" type="range" min="1" max="8" step="1" value="1">
     </div>
+    <button id="cockpit-reset-view" class="cockpit-action" type="button">Reset View</button>
+    <button id="cockpit-orbit-earth" class="cockpit-action" type="button" aria-pressed="false">Orbit Earth</button>
   </div>
   <div class="cockpit-console">
     <div><span>Course</span><b id="cockpit-course"></b></div>
@@ -1069,9 +1078,14 @@ const COCKPIT_WARP_MAX = 8;
 const COCKPIT_LOOK_SENSITIVITY = 0.0042;
 const COCKPIT_LOOK_PITCH_LIMIT = 1.22;
 const COCKPIT_EARTH_START_RANGE_LY = 4.2e-8; // roughly low Earth orbit, readable at cockpit scale
+const COCKPIT_EARTH_ORBIT_DISTANCE = 320;
+const COCKPIT_EARTH_ORBIT_RADIUS = 108;
+const COCKPIT_EARTH_TEXTURE_URL = 'assets/earth-blue-marble-2048.jpg';
+const COCKPIT_EARTH_CLOUDS_URL = 'https://threejs.org/examples/textures/planets/earth_clouds_1024.png';
+const COCKPIT_MOON_TEXTURE_URL = 'https://threejs.org/examples/textures/planets/moon_1024.jpg';
 const COCKPIT_FLYBY_FIRST_DELAY_MS = 900;
 const COCKPIT_FLYBY_INTERVAL_MS = 15000;
-const COCKPIT_FLYBY_DURATION_MS = 7600;
+const COCKPIT_FLYBY_DURATION_MS = 9200;
 const AU_PER_LY = 63241.077084266;
 const KM_PER_LY = C_KM_S * 365.25 * 24 * 60 * 60;
 const WARP_TARGETS = [
@@ -1088,9 +1102,9 @@ const WARP_TARGETS = [
   { id: 'andromeda', name: 'Andromeda Galaxy', ra: 10.6847, dec: 41.2692, dist_ly: 2537000 },
 ];
 const COCKPIT_FLYBY_TYPES = [
-  { id: 'klingon', name: 'Klingon Raider', className: 'Bird-of-prey contact', color: '#b8c98f', accent: '#ff7f45', size: 88, hull: '#3e4d34', trim: '#9dac78' },
-  { id: 'romulan', name: 'Romulan Warbird', className: 'Warbird contact', color: '#76d8bf', accent: '#b9ffe8', size: 104, hull: '#315a4c', trim: '#6fc6a9' },
-  { id: 'borg', name: 'Borg Scout Cube', className: 'Cube contact', color: '#9bff83', accent: '#e6ffe2', size: 84, hull: '#263323', trim: '#5f8f55' },
+  { id: 'klingon', name: 'Klingon Raider', className: 'Bird-of-prey contact', color: '#bfc8b0', accent: '#ff8b4a', size: 88, hull: '#596057', trim: '#a5ad9c' },
+  { id: 'romulan', name: 'Romulan Warbird', className: 'Warbird contact', color: '#9dcfc6', accent: '#b9ffe8', size: 104, hull: '#3f5554', trim: '#9ab8b3' },
+  { id: 'borg', name: 'Borg Scout Cube', className: 'Cube contact', color: '#b3c8a9', accent: '#d8ffd8', size: 84, hull: '#303833', trim: '#6f806c' },
   { id: 'xwing', name: 'X-Wing Escort', className: 'Rebel starfighter', color: '#f2f6ff', accent: '#ff5d4d', size: 78, hull: '#d7dee8', trim: '#8b94a6' },
   { id: 'tie', name: 'TIE Patrol', className: 'Imperial starfighter', color: '#d9e2ff', accent: '#86a8ff', size: 82, hull: '#7e8798', trim: '#c2cada' },
   { id: 'firefly', name: 'Firefly Transport', className: 'Independent transport', color: '#ffd16c', accent: '#75d6ff', size: 94, hull: '#9a7640', trim: '#c9b078' },
@@ -3792,6 +3806,7 @@ const cockpitTitle = $('cockpit-title'), cockpitClock = $('cockpit-clock'), cock
 const cockpitWarp = $('cockpit-warp'), cockpitRange = $('cockpit-range'), cockpitContacts = $('cockpit-contacts');
 const cockpitEngage = $('cockpit-engage'), cockpitWarpSlider = $('cockpit-warp-slider');
 const cockpitWarpFactor = $('cockpit-warp-factor');
+const cockpitResetView = $('cockpit-reset-view'), cockpitOrbitEarth = $('cockpit-orbit-earth');
 const cockpitDestinationBtn = $('cockpit-destination'), cockpitDestinationMenu = $('cockpit-destination-menu');
 
 let cockpitMode = false;
@@ -3826,6 +3841,7 @@ const cockpitDisplayPos = new THREE.Vector3();
 const cockpitViewDir = new THREE.Vector3();
 const cockpitViewSide = new THREE.Vector3();
 const cockpitViewUp = new THREE.Vector3();
+const cockpitEarthOrbitTextureOffset = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.14, Math.PI, -0.2));
 const cockpitState = {
   engaged: false,
   warp: 1,
@@ -3837,6 +3853,8 @@ const cockpitState = {
   lookDragged: false,
   lookLastX: 0,
   lookLastY: 0,
+  orbitEarth: false,
+  earthOrbitPhase: 0,
   nextFlybyAt: 0,
   flybyIndex: 0,
   flybySerial: 0,
@@ -3853,6 +3871,7 @@ const cockpitSky = {
   solarEntries: [],
   messierEntries: [],
   earthEntry: null,
+  moonEntry: null,
   flybyEntries: [],
   flybyGroup: null,
 };
@@ -3936,6 +3955,8 @@ function cockpitResetNavigation() {
   cockpitState.viewPitch = 0;
   cockpitState.looking = false;
   cockpitState.lookDragged = false;
+  cockpitState.orbitEarth = false;
+  cockpitState.earthOrbitPhase = 0;
   cockpitState.nextFlybyAt = performance.now() + COCKPIT_FLYBY_FIRST_DELAY_MS;
   cockpitState.flybyIndex = 0;
   cockpitState.flybySerial = 0;
@@ -3943,6 +3964,30 @@ function cockpitResetNavigation() {
   cockpitState.warp = Number(cockpitWarpSlider.value) || 1;
   canvas.classList.remove('looking');
   resetCockpitFlybys();
+  cockpitHudLast = 0;
+}
+
+function setCockpitEarthOrbit(on) {
+  cockpitState.orbitEarth = !!on;
+  cockpitState.engaged = false;
+  cockpitState.shipLy = 0;
+  cockpitState.elapsedYears = 0;
+  cockpitState.viewYaw = 0;
+  cockpitState.viewPitch = 0;
+  cockpitState.departureJD = solarJD;
+  cockpitState.nextFlybyAt = performance.now() + COCKPIT_FLYBY_FIRST_DELAY_MS;
+  resetCockpitFlybys();
+  cockpitHudLast = 0;
+  cockpitOrbitEarth.classList.toggle('active', cockpitState.orbitEarth);
+  cockpitOrbitEarth.setAttribute('aria-pressed', cockpitState.orbitEarth ? 'true' : 'false');
+}
+
+function resetCockpitLookToCourse() {
+  cockpitState.viewYaw = 0;
+  cockpitState.viewPitch = 0;
+  cockpitState.looking = false;
+  cockpitState.lookDragged = false;
+  canvas.classList.remove('looking');
   cockpitHudLast = 0;
 }
 
@@ -4086,6 +4131,117 @@ function makeCockpitEarthTexture() {
   return tex;
 }
 
+function loadCockpitTexture(url, applyTexture) {
+  eclipseTextureLoader.load(
+    url,
+    texture => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      applyTexture(texture);
+    },
+    undefined,
+    () => {}
+  );
+}
+
+function setCockpitGroupPickObject(group, obj) {
+  group.traverse(child => {
+    child.userData.obj = obj;
+  });
+}
+
+function makeCockpitEarthScene(earthObj) {
+  const group = new THREE.Group();
+  const earthMaterial = new THREE.MeshBasicMaterial({
+    map: makeCockpitEarthTexture(),
+    color: new THREE.Color(1.72, 1.78, 1.88),
+    transparent: true,
+    opacity: 1,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const earthMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 48), earthMaterial);
+  earthMesh.renderOrder = 30;
+  earthMesh.userData.obj = earthObj;
+  group.add(earthMesh);
+  loadCockpitTexture(COCKPIT_EARTH_TEXTURE_URL, texture => {
+    earthMaterial.map = texture;
+    earthMaterial.needsUpdate = true;
+  });
+
+  const cloudsMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.22,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.014, 96, 48), cloudsMaterial);
+  clouds.renderOrder = 31;
+  clouds.userData.obj = earthObj;
+  group.add(clouds);
+  loadCockpitTexture(COCKPIT_EARTH_CLOUDS_URL, texture => {
+    cloudsMaterial.map = texture;
+    cloudsMaterial.needsUpdate = true;
+  });
+
+  const atmosphere = new THREE.Mesh(
+    new THREE.SphereGeometry(1.045, 96, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x7fcfff,
+      transparent: true,
+      opacity: 0.12,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  atmosphere.renderOrder = 32;
+  atmosphere.userData.obj = earthObj;
+  group.add(atmosphere);
+
+  const moonObj = solarBySlug.moon || null;
+  const moonGroup = new THREE.Group();
+  moonGroup.visible = false;
+  moonGroup.userData.obj = moonObj || earthObj;
+  const moonMaterial = new THREE.MeshBasicMaterial({
+    color: 0xd8dbe2,
+    transparent: true,
+    opacity: 1,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(0.34, 48, 24), moonMaterial);
+  moonMesh.renderOrder = 42;
+  moonMesh.userData.obj = moonObj || earthObj;
+  moonGroup.add(moonMesh);
+  loadCockpitTexture(COCKPIT_MOON_TEXTURE_URL, texture => {
+    moonMaterial.map = texture;
+    moonMaterial.needsUpdate = true;
+  });
+
+  const moonLabel = makeTextSprite('Moon', {
+    size: 14,
+    color: '#e8edf7',
+    weight: 700,
+    opacity: 0.84,
+    unit: 0.0038,
+  });
+  moonLabel.position.set(0, 0.52, 0);
+  moonLabel.renderOrder = 44;
+  moonLabel.userData.obj = moonObj || earthObj;
+  moonGroup.add(moonLabel);
+  group.add(moonGroup);
+
+  setCockpitGroupPickObject(group, earthObj);
+  moonMesh.userData.obj = moonObj || earthObj;
+  moonLabel.userData.obj = moonObj || earthObj;
+  return { group, earthMesh, clouds, atmosphere, moonGroup, moonMesh, moonLabel, moonObj };
+}
+
 function cockpitSeededRandom(seedText) {
   let seed = 0;
   for (let i = 0; i < seedText.length; i += 1) seed = (seed * 31 + seedText.charCodeAt(i)) >>> 0;
@@ -4095,19 +4251,102 @@ function cockpitSeededRandom(seedText) {
   };
 }
 
+function cockpitRgba(color, alpha) {
+  const c = new THREE.Color(color);
+  return `rgba(${Math.round(c.r * 255)}, ${Math.round(c.g * 255)}, ${Math.round(c.b * 255)}, ${alpha})`;
+}
+
+function makeCockpitFlybyTexture(type, color, layer = 'hull') {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const rnd = cockpitSeededRandom(`${type.id}-${layer}-surface`);
+  const base = new THREE.Color(color);
+  const dark = base.clone().offsetHSL(0, -0.03, -0.18);
+  const light = base.clone().offsetHSL(0, -0.05, 0.22);
+
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, `#${light.getHexString()}`);
+  gradient.addColorStop(0.48, `#${base.getHexString()}`);
+  gradient.addColorStop(1, `#${dark.getHexString()}`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  for (let i = 0; i < 900; i += 1) {
+    const tone = rnd() > 0.52 ? 255 : 0;
+    ctx.fillStyle = `rgba(${tone}, ${tone}, ${tone}, ${0.018 + rnd() * 0.055})`;
+    ctx.fillRect(Math.floor(rnd() * size), Math.floor(rnd() * size), 1 + Math.floor(rnd() * 2), 1);
+  }
+
+  ctx.lineWidth = 1;
+  for (let x = 24; x < size; x += 28 + Math.floor(rnd() * 24)) {
+    ctx.strokeStyle = cockpitRgba(dark, 0.38);
+    ctx.beginPath();
+    ctx.moveTo(x + rnd() * 8 - 4, 0);
+    ctx.lineTo(x + rnd() * 8 - 4, size);
+    ctx.stroke();
+    ctx.strokeStyle = cockpitRgba(light, 0.14);
+    ctx.beginPath();
+    ctx.moveTo(x + 1, 0);
+    ctx.lineTo(x + 1, size);
+    ctx.stroke();
+  }
+  for (let y = 22; y < size; y += 24 + Math.floor(rnd() * 22)) {
+    ctx.strokeStyle = cockpitRgba(dark, 0.32);
+    ctx.beginPath();
+    ctx.moveTo(0, y + rnd() * 8 - 4);
+    ctx.lineTo(size, y + rnd() * 8 - 4);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < 34; i += 1) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    const w = 10 + rnd() * 44;
+    const h = 5 + rnd() * 18;
+    ctx.fillStyle = rnd() > 0.5 ? cockpitRgba(light, 0.12) : cockpitRgba(dark, 0.18);
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = cockpitRgba(dark, 0.28);
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  for (let i = 0; i < 22; i += 1) {
+    const x = rnd() * size;
+    const y = rnd() * size;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.08 + rnd() * 0.16})`;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 14 + rnd() * 54, y + rnd() * 7 - 3.5);
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1.35, 1.1);
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return texture;
+}
+
 function cockpitFlybyMaterial(color, {
   emissive = '#05070a',
   emissiveIntensity = 0.08,
   opacity = 1,
-  shininess = 92,
+  metalness = 0.62,
+  roughness = 0.34,
   side = THREE.FrontSide,
+  map = null,
 } = {}) {
-  const material = new THREE.MeshPhongMaterial({
-    color,
+  const material = new THREE.MeshStandardMaterial({
+    color: map ? 0xffffff : color,
+    map,
     emissive,
     emissiveIntensity,
-    shininess,
-    specular: 0xd8e8ff,
+    metalness,
+    roughness,
     transparent: opacity < 1,
     opacity,
     depthTest: false,
@@ -4219,26 +4458,44 @@ function setCockpitFlybyOpacity(entry, opacity) {
 
 function makeCockpitFlybyModel(type) {
   const group = new THREE.Group();
+  const hullTexture = makeCockpitFlybyTexture(type, type.hull || type.color, 'hull');
+  const trimTexture = makeCockpitFlybyTexture(type, type.trim || type.color, 'trim');
+  const darkTexture = makeCockpitFlybyTexture(type, '#202634', 'dark');
   const hull = cockpitFlybyMaterial(type.hull || type.color, {
-    emissive: type.hull || type.color,
-    emissiveIntensity: 0.08,
-    shininess: 105,
+    emissive: '#11161b',
+    emissiveIntensity: 0.1,
+    metalness: 0.72,
+    roughness: 0.38,
+    map: hullTexture,
   });
   const trim = cockpitFlybyMaterial(type.trim || type.color, {
-    emissive: type.trim || type.color,
-    emissiveIntensity: 0.13,
-    shininess: 124,
+    emissive: '#131b21',
+    emissiveIntensity: 0.11,
+    metalness: 0.78,
+    roughness: 0.32,
+    map: trimTexture,
   });
   const dark = cockpitFlybyMaterial('#141923', {
     emissive: '#02040a',
     emissiveIntensity: 0.06,
-    shininess: 70,
+    metalness: 0.58,
+    roughness: 0.48,
+    map: darkTexture,
   });
   const glass = cockpitFlybyMaterial('#b9e6ff', {
     emissive: '#54a8ff',
     emissiveIntensity: 0.42,
     opacity: 0.78,
-    shininess: 150,
+    metalness: 0.18,
+    roughness: 0.12,
+  });
+  const panel = cockpitFlybyMaterial('#dbe5ef', {
+    emissive: '#152333',
+    emissiveIntensity: 0.04,
+    opacity: 0.36,
+    metalness: 0.86,
+    roughness: 0.42,
+    map: makeCockpitFlybyTexture(type, '#d2d8de', 'panels'),
   });
   const glow = cockpitFlybyGlowMaterial(type.accent, 0.9);
 
@@ -4325,6 +4582,10 @@ function makeCockpitFlybyModel(type) {
   }
 
   addFlybyBox(group, [0.06, 0.06, 0.06], [1.9, 0, 0], [0, 0, 0], cockpitFlybyGlowMaterial(type.accent, 0.5));
+  if (type.id !== 'borg') {
+    addFlybyPanelSpecks(group, type, panel, 20, 1.28, 0.92, 0.16);
+    addFlybyPanelSpecks(group, type, dark, 10, 1.18, 0.82, -0.16);
+  }
   addFlybyHitbox(group);
   return group;
 }
@@ -4364,15 +4625,15 @@ function spawnCockpitFlyby(now) {
   const right = new THREE.Vector3().crossVectors(forward, up).normalize();
   const side = cockpitState.flybySerial % 2 ? -1 : 1;
   const lane = ((cockpitState.flybySerial * 37) % 100) / 100;
-  const depth = 205 + ((cockpitState.flybySerial * 53) % 95);
-  const y = -92 + lane * 184;
-  const drift = (((cockpitState.flybySerial * 29) % 100) / 100 - 0.5) * 72;
+  const depth = 170 + ((cockpitState.flybySerial * 53) % 76);
+  const y = -68 + lane * 138;
+  const drift = (((cockpitState.flybySerial * 29) % 100) / 100 - 0.5) * 54;
 
   const start = forward.clone().multiplyScalar(depth)
-    .addScaledVector(right, side * 270)
+    .addScaledVector(right, side * 230)
     .addScaledVector(up, y);
   const end = forward.clone().multiplyScalar(depth * 0.84)
-    .addScaledVector(right, side * -270)
+    .addScaledVector(right, side * -230)
     .addScaledVector(up, y + drift);
   const moveDir = end.clone().sub(start).normalize();
   const baseQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), moveDir);
@@ -4424,7 +4685,7 @@ function updateCockpitFlybys(now) {
     const pass = Math.sin(sweep * Math.PI);
     entry.pos.lerpVectors(entry.start, entry.end, sweep).addScaledVector(entry.up, pass * entry.arc);
     entry.model.position.copy(entry.pos);
-    const scale = (entry.baseSize / 7.2) * (0.72 + pass * 0.36);
+    const scale = (entry.baseSize / 5.9) * (0.78 + pass * 0.42);
     entry.model.scale.setScalar(scale);
     const rollQ = new THREE.Quaternion().setFromAxisAngle(
       entry.moveDir,
@@ -4466,7 +4727,7 @@ function ensureCockpitSky() {
   starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   starGeo.setAttribute('pointSize', new THREE.BufferAttribute(pointSizes, 1));
   const starMat = makeCatalogStarMaterial(0.92);
-  starMat.depthTest = false;
+  starMat.depthTest = true;
   const starPoints = new THREE.Points(starGeo, starMat);
   starPoints.frustumCulled = false;
   starPoints.renderOrder = 20;
@@ -4492,24 +4753,23 @@ function ensureCockpitSky() {
   });
 
   const earthObj = solarBySlug.earth;
-  const earthSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: makeCockpitEarthTexture(),
-    transparent: true,
-    opacity: 0.98,
-    depthTest: false,
-    depthWrite: false,
-  }));
-  earthSprite.renderOrder = 26;
-  earthSprite.userData.obj = earthObj;
-  cockpitSkyGroup.add(earthSprite);
+  const earthScene = makeCockpitEarthScene(earthObj);
+  cockpitSkyGroup.add(earthScene.group);
   cockpitSky.earthEntry = {
     obj: earthObj,
-    sprite: earthSprite,
+    ...earthScene,
     actual: new THREE.Vector3(),
     pos: new THREE.Vector3(),
     rangeLy: COCKPIT_EARTH_START_RANGE_LY,
     rangeAU: COCKPIT_EARTH_START_RANGE_LY * AU_PER_LY,
   };
+  cockpitSky.moonEntry = earthScene.moonObj ? {
+    obj: earthScene.moonObj,
+    pos: new THREE.Vector3(),
+    rangeLy: 384400 / KM_PER_LY,
+    rangeAU: 384400 / AU_KM,
+    visible: false,
+  } : null;
 
   cockpitSky.messierEntries = objects.map(obj => ({
     obj,
@@ -4519,10 +4779,12 @@ function ensureCockpitSky() {
   }));
 
   cockpitSky.flybyGroup = new THREE.Group();
-  const flybyKey = new THREE.DirectionalLight(0xffffff, 1.45);
+  const flybyKey = new THREE.DirectionalLight(0xffffff, 2.25);
   flybyKey.position.set(-1.2, 1.8, 2.4);
-  const flybyFill = new THREE.AmbientLight(0x7890b8, 0.62);
-  cockpitSkyGroup.add(flybyFill, flybyKey);
+  const flybyFill = new THREE.AmbientLight(0x7890b8, 0.88);
+  const flybyRim = new THREE.DirectionalLight(0x8fd7ff, 1.05);
+  flybyRim.position.set(1.8, -1.1, -2.2);
+  cockpitSkyGroup.add(flybyFill, flybyKey, flybyRim);
   cockpitSkyGroup.add(cockpitSky.flybyGroup);
 
   cockpitSky.ready = true;
@@ -4577,15 +4839,47 @@ function updateCockpitEarthSprite() {
   const rangeLy = Math.max(COCKPIT_EARTH_START_RANGE_LY, cockpitState.shipLy);
   cockpitActualVec.copy(cockpitState.dir).multiplyScalar(-1);
   entry.actual.copy(cockpitActualVec).multiplyScalar(rangeLy);
-  entry.rangeLy = rangeLy;
-  entry.rangeAU = rangeLy * AU_PER_LY;
-  entry.pos.copy(cockpitActualVec).multiplyScalar(COCKPIT_SKY_RADIUS);
-  entry.sprite.position.copy(entry.pos);
+  entry.rangeLy = cockpitState.orbitEarth ? COCKPIT_EARTH_START_RANGE_LY : rangeLy;
+  entry.rangeAU = entry.rangeLy * AU_PER_LY;
 
-  const orbitRatio = Math.max(1, rangeLy / COCKPIT_EARTH_START_RANGE_LY);
-  const size = THREE.MathUtils.clamp(185 / Math.sqrt(orbitRatio), 5.5, 185);
-  entry.sprite.scale.set(size, size, 1);
-  entry.sprite.visible = true;
+  let radius;
+  if (cockpitState.orbitEarth) {
+    entry.pos.copy(cockpitViewDir).multiplyScalar(COCKPIT_EARTH_ORBIT_DISTANCE)
+      .addScaledVector(cockpitViewUp, -44)
+      .addScaledVector(cockpitViewSide, Math.sin(cockpitState.earthOrbitPhase * 0.7) * 10);
+    radius = COCKPIT_EARTH_ORBIT_RADIUS;
+  } else {
+    entry.pos.copy(cockpitActualVec).multiplyScalar(COCKPIT_SKY_RADIUS);
+    const orbitRatio = Math.max(1, rangeLy / COCKPIT_EARTH_START_RANGE_LY);
+    radius = THREE.MathUtils.clamp(92.5 / Math.sqrt(orbitRatio), 2.75, 92.5);
+  }
+
+  entry.group.position.copy(entry.pos);
+  entry.group.scale.setScalar(radius);
+  entry.group.visible = true;
+  const spin = earthSpinQuaternion(jdToDate(cockpitState.departureJD + cockpitState.elapsedYears * 365.25));
+  entry.earthMesh.quaternion.copy(spin);
+  if (cockpitState.orbitEarth) entry.earthMesh.quaternion.multiply(cockpitEarthOrbitTextureOffset);
+  entry.clouds.quaternion.copy(entry.earthMesh.quaternion)
+    .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cockpitState.earthOrbitPhase * 0.35));
+
+  const moonEntry = cockpitSky.moonEntry;
+  if (!moonEntry || !entry.moonGroup) return;
+  const moonGeo = moonGeoEcl(cockpitState.departureJD);
+  const moonLen = Math.max(1e-9, Math.hypot(...moonGeo));
+  const moonSceneDir = eclVecToScene(moonGeo.map(v => v / moonLen), 1).normalize();
+  const sideSign = moonSceneDir.dot(cockpitViewSide) >= 0 ? 1 : -1;
+  const moonLocal = cockpitViewSide.clone().multiplyScalar(1.42 * sideSign)
+    .addScaledVector(cockpitViewUp, 0.9)
+    .addScaledVector(cockpitViewDir, 0.14)
+    .normalize()
+    .multiplyScalar(1.82);
+  entry.moonGroup.position.copy(moonLocal);
+  entry.moonGroup.visible = cockpitState.orbitEarth;
+  moonEntry.visible = cockpitState.orbitEarth;
+  moonEntry.pos.copy(entry.pos).addScaledVector(moonLocal, radius);
+  moonEntry.rangeLy = 384400 / KM_PER_LY;
+  moonEntry.rangeAU = 384400 / AU_KM;
 }
 
 function updateCockpitSky(now) {
@@ -4659,6 +4953,7 @@ function cockpitCandidateContacts() {
   if (!cockpitMode) return [];
   return [
     ...(cockpitSky.earthEntry ? [cockpitSky.earthEntry] : []),
+    ...(cockpitSky.moonEntry?.visible ? [cockpitSky.moonEntry] : []),
     ...cockpitSky.flybyEntries,
     ...cockpitSky.solarEntries,
     ...cockpitSky.starEntries,
@@ -4666,12 +4961,34 @@ function cockpitCandidateContacts() {
   ];
 }
 
+function cockpitBaseViewFrame() {
+  if (!cockpitState.orbitEarth) {
+    return {
+      dir: cockpitState.dir,
+      side: cockpitState.side,
+      up: cockpitState.up,
+    };
+  }
+
+  const roll = cockpitState.earthOrbitPhase;
+  const dir = cockpitState.dir.clone().multiplyScalar(-0.68)
+    .addScaledVector(cockpitState.up, -0.36)
+    .addScaledVector(cockpitState.side, Math.sin(roll) * 0.28)
+    .normalize();
+  let side = new THREE.Vector3().crossVectors(cockpitState.up, dir);
+  if (side.lengthSq() < 0.01) side.copy(cockpitState.side);
+  side.normalize();
+  const up = dir.clone().cross(side).normalize();
+  return { dir, side, up };
+}
+
 function updateCockpitViewFrame() {
-  cockpitViewDir.copy(cockpitState.dir);
-  cockpitViewSide.copy(cockpitState.side);
+  const baseFrame = cockpitBaseViewFrame();
+  cockpitViewDir.copy(baseFrame.dir);
+  cockpitViewSide.copy(baseFrame.side);
   if (cockpitState.viewYaw) {
-    cockpitViewDir.applyAxisAngle(cockpitState.up, cockpitState.viewYaw);
-    cockpitViewSide.applyAxisAngle(cockpitState.up, cockpitState.viewYaw);
+    cockpitViewDir.applyAxisAngle(baseFrame.up, cockpitState.viewYaw);
+    cockpitViewSide.applyAxisAngle(baseFrame.up, cockpitState.viewYaw);
   }
   cockpitViewDir.normalize();
   cockpitViewSide.normalize();
@@ -4750,6 +5067,9 @@ function renderCockpitHud(now) {
       const aEarth = a.obj.data.slug === 'earth';
       const bEarth = b.obj.data.slug === 'earth';
       if (aEarth || bEarth) return aEarth ? -1 : 1;
+      const aMoon = cockpitState.orbitEarth && a.obj.data.slug === 'moon';
+      const bMoon = cockpitState.orbitEarth && b.obj.data.slug === 'moon';
+      if (aMoon || bMoon) return aMoon ? -1 : 1;
       const aFlyby = a.obj.data.flyby;
       const bFlyby = b.obj.data.flyby;
       if (aFlyby || bFlyby) return aFlyby ? -1 : 1;
@@ -4806,22 +5126,29 @@ function updateCockpitView(now) {
   const etaYears = remainingLy / speed;
   const stoppedAtStart = !cockpitState.engaged && cockpitState.shipLy <= 1e-6;
   cockpitEl.classList.toggle('engaged', cockpitState.engaged);
+  cockpitEl.classList.toggle('orbiting-earth', cockpitState.orbitEarth);
   cockpitEngage.textContent = cockpitState.engaged ? 'Hold' : 'Engage';
+  cockpitOrbitEarth.classList.toggle('active', cockpitState.orbitEarth);
+  cockpitOrbitEarth.setAttribute('aria-pressed', cockpitState.orbitEarth ? 'true' : 'false');
   cockpitWarpFactor.textContent = `Warp ${cockpitState.warp}`;
   cockpitWarpSlider.value = cockpitState.warp;
   cockpitTitle.textContent = `Destination: ${warpEnterpriseTarget.name}`;
-  cockpitClock.textContent = cockpitState.engaged
+  cockpitClock.textContent = cockpitState.orbitEarth
+    ? 'Low Earth orbit survey'
+    : cockpitState.engaged
     ? `${formatWarpTravelTime(cockpitState.elapsedYears)} / ${formatWarpTravelTime(totalYears)}`
     : `${stoppedAtStart ? 'Earth orbit hold' : 'Holding'} · ${formatWarpTravelTime(etaYears)} at warp ${cockpitState.warp}`;
   cockpitCourse.textContent = warpEnterpriseTarget.name;
-  cockpitWarp.textContent = `Warp ${cockpitState.warp} · ${formatCockpitWarpSpeed()}`;
-  cockpitRange.textContent = `${formatWarpDistance(remainingLy)} remaining`;
+  cockpitWarp.textContent = cockpitState.orbitEarth ? 'Orbital hold' : `Warp ${cockpitState.warp} · ${formatCockpitWarpSpeed()}`;
+  cockpitRange.textContent = cockpitState.orbitEarth ? 'Low Earth orbit' : `${formatWarpDistance(remainingLy)} remaining`;
   renderCockpitHud(now);
 }
 
 function updateCockpitSimulation(now, dtSec) {
   if (!cockpitMode) return;
-  if (cockpitState.engaged) {
+  if (cockpitState.orbitEarth) {
+    cockpitState.earthOrbitPhase = (cockpitState.earthOrbitPhase + dtSec * 0.16) % (Math.PI * 2);
+  } else if (cockpitState.engaged) {
     const deltaYears = dtSec * COCKPIT_SIM_DAYS_PER_SECOND / 365.25;
     cockpitState.elapsedYears += deltaYears;
     cockpitState.shipLy = Math.min(
@@ -4887,6 +5214,7 @@ function exitCockpitMode({ restore = true } = {}) {
 }
 
 cockpitEngage.addEventListener('click', () => {
+  if (cockpitState.orbitEarth) setCockpitEarthOrbit(false);
   cockpitState.engaged = !cockpitState.engaged;
   cockpitHudLast = 0;
   updateCockpitView(performance.now());
@@ -4895,6 +5223,16 @@ cockpitEngage.addEventListener('click', () => {
 cockpitWarpSlider.addEventListener('input', e => {
   cockpitState.warp = THREE.MathUtils.clamp(Number(e.target.value) || 1, COCKPIT_WARP_MIN, COCKPIT_WARP_MAX);
   cockpitHudLast = 0;
+  updateCockpitView(performance.now());
+});
+
+cockpitResetView.addEventListener('click', () => {
+  resetCockpitLookToCourse();
+  updateCockpitView(performance.now());
+});
+
+cockpitOrbitEarth.addEventListener('click', () => {
+  setCockpitEarthOrbit(!cockpitState.orbitEarth);
   updateCockpitView(performance.now());
 });
 
