@@ -41,6 +41,8 @@ pole in the direction of the Virgo Cluster.
 - Selected galaxies can show a present-day estimate arrow based on simple Hubble flow
 - Selected objects can open a location-based sky chart with city/current-location lookup
   and a time slider with a day/twilight/night strip
+- Tonight's list can open an interactive location-based planetarium dome with
+  drag-to-look navigation, time scrubbing, labels, and clickable sky objects
 - Messier objects in the sky chart are clickable for an in-place detail readout
 - Deep links: `index.html#m31` opens with Andromeda selected, `#jupiter` or
   `#titan` a solar-system body

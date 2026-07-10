@@ -83,7 +83,20 @@
   }
 
   /* ---------- legend ---------- */
-  #legend { left: 16px; bottom: 16px; padding: 12px 16px; }
+  #legend {
+    left: 16px; bottom: 16px; padding: 12px 16px;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(138, 180, 255, 0.35) transparent;
+  }
+  #legend::-webkit-scrollbar { width: 7px; }
+  #legend::-webkit-scrollbar-thumb {
+    background: rgba(138, 180, 255, 0.28);
+    border-radius: 999px;
+  }
   #legend h2 {
     font-size: 11px; font-weight: 600; text-transform: uppercase;
     letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px;
@@ -543,6 +556,87 @@
   .tonight-row .sub { color: var(--text-dim); font-size: 11.5px; }
   .tonight-row .mag { margin-left: auto; color: var(--text-dim); font-size: 11.5px; flex: none; }
   #tonight-empty { color: var(--text-dim); font-size: 12.5px; margin-top: 14px; }
+  #tonight-skyview {
+    width: 100%; margin-top: 7px; color: var(--accent);
+  }
+
+  /* ---------- location skyview ---------- */
+  #skyview-modal {
+    inset: 12px; padding: 0; z-index: 72; display: none;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    background: rgba(3, 6, 14, 0.97);
+  }
+  #skyview-modal.open { display: grid; }
+  #skyview-subtitle { color: var(--text-dim); font-size: 12px; margin-top: 1px; }
+  #skyview-close {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    background: rgba(5, 8, 16, 0.7); border: 1px solid var(--panel-border);
+    color: var(--text); cursor: pointer; font-size: 15px; line-height: 1;
+  }
+  #skyview-close:hover { background: rgba(5, 8, 16, 0.95); }
+  #skyview-stage { position: relative; min-height: 0; overflow: hidden; }
+  #skyview-canvas {
+    width: 100%; height: 100%; min-height: 320px; display: block;
+    cursor: grab; touch-action: none;
+    background: #02050d;
+  }
+  #skyview-canvas.dragging { cursor: grabbing; }
+  #skyview-canvas.hovering { cursor: pointer; }
+  #skyview-labels { position: absolute; inset: 0; pointer-events: none; }
+  .skyview-label {
+    position: absolute; z-index: 3; transform: translate(8px, -50%);
+    max-width: 180px; padding: 4px 7px;
+    border: 1px solid color-mix(in srgb, var(--object-color) 45%, transparent);
+    border-radius: 7px;
+    background: rgba(5, 10, 22, 0.78);
+    color: #eaf2ff; font-size: 11px; line-height: 1.15;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    cursor: pointer; pointer-events: auto;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .skyview-label::before {
+    content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px;
+    border-radius: 50%; background: var(--object-color); vertical-align: 1px;
+    box-shadow: 0 0 7px var(--object-color);
+  }
+  .skyview-label:hover, .skyview-label.active {
+    background: rgba(20, 34, 62, 0.92);
+    border-color: var(--object-color);
+  }
+  .skyview-label.left { transform: translate(calc(-100% - 8px), -50%); }
+  #skyview-selection {
+    position: absolute; left: 14px; bottom: 14px; z-index: 5;
+    width: min(320px, calc(100% - 28px)); padding: 10px 11px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    border: 1px solid rgba(140, 170, 255, 0.22); border-radius: 9px;
+    background: rgba(5, 10, 22, 0.82);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  #skyview-selection b { display: block; font-size: 12.5px; }
+  #skyview-selection span { display: block; color: var(--text-dim); font-size: 11px; margin-top: 1px; }
+  #skyview-open-object, #skyview-reset {
+    padding: 7px 9px; border: 1px solid var(--panel-border); border-radius: 8px;
+    background: rgba(138, 180, 255, 0.09); color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  #skyview-open-object:hover, #skyview-reset:hover {
+    border-color: rgba(138, 180, 255, 0.42); background: rgba(138, 180, 255, 0.15);
+  }
+  #skyview-open-object:disabled { opacity: 0.42; cursor: default; }
+  #skyview-tooltip {
+    position: absolute; z-index: 6; display: none; pointer-events: none;
+    max-width: 220px; padding: 5px 8px;
+    border: 1px solid rgba(140, 170, 255, 0.22); border-radius: 7px;
+    background: rgba(5, 10, 22, 0.92); color: var(--text); font-size: 11.5px;
+  }
+  #skyview-controls {
+    display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: 12px; align-items: center;
+    padding: 10px 14px 12px; border-top: 1px solid var(--panel-border);
+    background: rgba(7, 10, 18, 0.78);
+  }
+  #skyview-time { width: 100%; accent-color: var(--accent); }
+  #skyview-time-label { display: block; color: var(--text); font-size: 12px; margin-bottom: 3px; }
+  #skyview-readout { color: var(--text-dim); font-size: 11.5px; white-space: nowrap; }
 
   /* ---------- tooltip ---------- */
   #tooltip {
@@ -740,8 +834,17 @@
     }
     #panel .button-row { grid-template-columns: 1fr; }
     #timedeck { left: 12px; right: 12px; bottom: 12px; transform: none; width: auto; }
-    #timedeck.show ~ #legend, #legend.lifted { bottom: 88px; }
+    #timedeck.show ~ #legend, #legend.lifted {
+      bottom: 88px;
+      max-height: calc(100vh - 104px);
+      max-height: calc(100dvh - 104px);
+    }
     #tonight-modal { top: auto; left: 16px; right: 16px; width: auto; max-height: 62vh; }
+    #skyview-modal { inset: 8px; }
+    #skyview-controls { grid-template-columns: 1fr auto; gap: 8px; }
+    #skyview-readout { grid-column: 1 / -1; white-space: normal; }
+    #skyview-selection { bottom: 10px; }
+    .skyview-label { max-width: 126px; font-size: 10.5px; }
     #eclipse-panel { left: 12px; right: 12px; top: auto; bottom: 94px; width: auto; }
     .eclipse-buttons { grid-template-columns: 1fr; }
     .eclipse-buttons.location-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -940,9 +1043,37 @@
         <button class="mini-button" id="tonight-city-btn">Find</button>
       </div>
       <button class="mini-button" id="tonight-locate-btn" style="width:100%; margin-top:7px">Use current location</button>
+      <button class="mini-button" id="tonight-skyview" disabled>Skyview from location</button>
       <div id="tonight-status"></div>
     </div>
     <div id="tonight-list"></div>
+  </div>
+</div>
+
+<div id="skyview-modal" class="overlay" aria-hidden="true">
+  <div class="sky-head">
+    <div>
+      <h2 id="skyview-title">Skyview</h2>
+      <div id="skyview-subtitle"></div>
+    </div>
+    <button id="skyview-close" title="Close">&times;</button>
+  </div>
+  <div id="skyview-stage">
+    <canvas id="skyview-canvas" aria-label="Interactive planetarium sky dome"></canvas>
+    <div id="skyview-labels"></div>
+    <div id="skyview-tooltip"></div>
+    <div id="skyview-selection" aria-live="polite">
+      <div><b id="skyview-selection-name">Select an object</b><span id="skyview-selection-meta">Drag to look around, then click any visible object.</span></div>
+      <button id="skyview-open-object" disabled>Open details</button>
+    </div>
+  </div>
+  <div id="skyview-controls">
+    <div>
+      <output id="skyview-time-label"></output>
+      <input id="skyview-time" type="range" min="0" max="720" step="10" value="360">
+    </div>
+    <div id="skyview-readout">Facing north</div>
+    <button id="skyview-reset">Face north</button>
   </div>
 </div>
 
@@ -1068,6 +1199,7 @@ const WARP_ENTERPRISE_LAYER = {
 
 const WARP_PREVIEW_CYCLE_MS = 24000;
 const COCKPIT_LABEL_LIMIT = 12;
+const COCKPIT_STAR_LABEL_LIMIT = 600;
 const COCKPIT_HUD_REFRESH_MS = 90;
 const COCKPIT_LABEL_MIN_GAP = 64;
 const COCKPIT_SKY_RADIUS = 560;
@@ -1080,6 +1212,9 @@ const COCKPIT_LOOK_PITCH_LIMIT = 1.22;
 const COCKPIT_EARTH_START_RANGE_LY = 4.2e-8; // roughly low Earth orbit, readable at cockpit scale
 const COCKPIT_EARTH_ORBIT_DISTANCE = 320;
 const COCKPIT_EARTH_ORBIT_RADIUS = 108;
+const COCKPIT_EARTH_ORBIT_UP_OFFSET = 22;
+const COCKPIT_EARTH_ORBIT_HEIGHT_FRACTION = 0.62;
+const COCKPIT_EARTH_ORBIT_WIDTH_FRACTION = 0.72;
 const COCKPIT_EARTH_TEXTURE_URL = 'assets/earth-blue-marble-2048.jpg';
 const COCKPIT_EARTH_CLOUDS_URL = 'https://threejs.org/examples/textures/planets/earth_clouds_1024.png';
 const COCKPIT_MOON_TEXTURE_URL = 'https://threejs.org/examples/textures/planets/moon_1024.jpg';
@@ -1102,13 +1237,13 @@ const WARP_TARGETS = [
   { id: 'andromeda', name: 'Andromeda Galaxy', ra: 10.6847, dec: 41.2692, dist_ly: 2537000 },
 ];
 const COCKPIT_FLYBY_TYPES = [
-  { id: 'klingon', name: 'Klingon Raider', className: 'Bird-of-prey contact', color: '#bfc8b0', accent: '#ff8b4a', size: 88, hull: '#596057', trim: '#a5ad9c' },
-  { id: 'romulan', name: 'Romulan Warbird', className: 'Warbird contact', color: '#9dcfc6', accent: '#b9ffe8', size: 104, hull: '#3f5554', trim: '#9ab8b3' },
-  { id: 'borg', name: 'Borg Scout Cube', className: 'Cube contact', color: '#b3c8a9', accent: '#d8ffd8', size: 84, hull: '#303833', trim: '#6f806c' },
-  { id: 'xwing', name: 'X-Wing Escort', className: 'Rebel starfighter', color: '#f2f6ff', accent: '#ff5d4d', size: 78, hull: '#d7dee8', trim: '#8b94a6' },
-  { id: 'tie', name: 'TIE Patrol', className: 'Imperial starfighter', color: '#d9e2ff', accent: '#86a8ff', size: 82, hull: '#7e8798', trim: '#c2cada' },
-  { id: 'firefly', name: 'Firefly Transport', className: 'Independent transport', color: '#ffd16c', accent: '#75d6ff', size: 94, hull: '#9a7640', trim: '#c9b078' },
-  { id: 'cylon', name: 'Cylon Raider', className: 'Raider contact', color: '#d8e4ff', accent: '#ff334f', size: 86, hull: '#838d9f', trim: '#cbd5e6' },
+  { id: 'klingon', name: 'Klingon Raider', className: 'Bird-of-prey contact', color: '#bfc8b0', accent: '#ff8b4a', size: 88, bank: 0.42, hull: '#596057', trim: '#a5ad9c' },
+  { id: 'romulan', name: 'Romulan Warbird', className: 'Warbird contact', color: '#9dcfc6', accent: '#b9ffe8', size: 104, bank: 0.34, hull: '#3f5554', trim: '#9ab8b3' },
+  { id: 'borg', name: 'Borg Scout Cube', className: 'Cube contact', color: '#b3c8a9', accent: '#d8ffd8', size: 84, bank: 0.28, hull: '#303833', trim: '#6f806c' },
+  { id: 'xwing', name: 'X-Wing Escort', className: 'Rebel starfighter', color: '#f2f6ff', accent: '#ff5d4d', size: 78, bank: 0.58, hull: '#d7dee8', trim: '#8b94a6' },
+  { id: 'tie', name: 'TIE Patrol', className: 'Imperial starfighter', color: '#d9e2ff', accent: '#86a8ff', size: 82, bank: 0.36, hull: '#7e8798', trim: '#c2cada' },
+  { id: 'firefly', name: 'Firefly Transport', className: 'Independent transport', color: '#ffd16c', accent: '#75d6ff', size: 94, bank: 0.4, hull: '#9a7640', trim: '#c9b078' },
+  { id: 'cylon', name: 'Cylon Raider', className: 'Raider contact', color: '#d8e4ff', accent: '#ff334f', size: 86, bank: 0.48, hull: '#838d9f', trim: '#cbd5e6' },
 ];
 let warpEnterpriseTarget = WARP_TARGETS.find(target => target.id === WARP_ENTERPRISE_LAYER.defaultTargetId) || WARP_TARGETS[0];
 
@@ -1283,7 +1418,7 @@ function latLonToEarthLocal(latDeg, lonDeg, radius = ECLIPSE_EARTH_RADIUS) {
   return new THREE.Vector3(
     cosLat * Math.cos(lon),
     Math.sin(lat),
-    cosLat * Math.sin(lon)
+    -cosLat * Math.sin(lon)
   ).multiplyScalar(radius);
 }
 
@@ -1291,9 +1426,13 @@ function earthSpinQuaternion(date) {
   const theta = degToRad(gmstDeg(date));
   const xAxis = equatorialVectorToScene([Math.cos(theta), Math.sin(theta), 0]).normalize();
   const yAxis = equatorialVectorToScene([0, 0, 1]).normalize();
-  const zAxis = equatorialVectorToScene([-Math.sin(theta), Math.cos(theta), 0]).normalize();
+  // SphereGeometry's positive longitudes run toward local -Z. Build a proper
+  // right-handed rotation basis here; the previous east-pointing +Z basis was
+  // a reflection. Converting that reflection to a quaternion introduced a
+  // spin-dependent non-uniform scale, visibly flattening or stretching Earth.
+  const zAxis = new THREE.Vector3().crossVectors(xAxis, yAxis).normalize();
   const basis = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
-  return new THREE.Quaternion().setFromRotationMatrix(basis);
+  return new THREE.Quaternion().setFromRotationMatrix(basis).normalize();
 }
 
 function lerpLonDeg(a, b, t) {
@@ -2334,6 +2473,7 @@ function makeWarpMarkerLabel(text, pos, offset, { color = '#ccefff', size = 15, 
 }
 
 function populateWarpEnterpriseGroup(group, target) {
+  disposeObject3DResources(group);
   group.clear();
   const dir = radecToScene(target.ra, target.dec, 1).normalize();
   let side = new THREE.Vector3(0, 1, 0).cross(dir);
@@ -2627,6 +2767,27 @@ scene.background = new THREE.Color(0x04060c);
 const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.15, 12000);
 const HOME_POS = new THREE.Vector3(305, 385, 745);
 camera.position.copy(HOME_POS);
+
+function syncRendererViewport(force = false) {
+  const viewportWidth = Math.max(1, Math.round(document.documentElement.clientWidth || window.innerWidth));
+  const viewportHeight = Math.max(1, Math.round(document.documentElement.clientHeight || window.innerHeight));
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const expectedBufferWidth = Math.round(viewportWidth * pixelRatio);
+  const expectedBufferHeight = Math.round(viewportHeight * pixelRatio);
+  const sizeChanged = canvas.width !== expectedBufferWidth || canvas.height !== expectedBufferHeight;
+  const pixelRatioChanged = Math.abs(renderer.getPixelRatio() - pixelRatio) > 1e-6;
+  const nextAspect = viewportWidth / viewportHeight;
+  const aspectChanged = Math.abs(camera.aspect - nextAspect) > 1e-6;
+
+  if (force || sizeChanged || pixelRatioChanged) {
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(viewportWidth, viewportHeight);
+  }
+  if (force || aspectChanged) {
+    camera.aspect = nextAspect;
+    camera.updateProjectionMatrix();
+  }
+}
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -3797,6 +3958,13 @@ const tonightModal = $('tonight-modal'), tonightSubtitle = $('tonight-subtitle')
 const tonightClose = $('tonight-close'), tonightList = $('tonight-list');
 const tonightCity = $('tonight-city'), tonightCityBtn = $('tonight-city-btn');
 const tonightLocateBtn = $('tonight-locate-btn'), tonightStatus = $('tonight-status');
+const tonightSkyviewBtn = $('tonight-skyview');
+const skyviewModal = $('skyview-modal'), skyviewTitle = $('skyview-title'), skyviewSubtitle = $('skyview-subtitle');
+const skyviewClose = $('skyview-close'), skyviewCanvas = $('skyview-canvas'), skyviewLabels = $('skyview-labels');
+const skyviewTooltip = $('skyview-tooltip'), skyviewTime = $('skyview-time'), skyviewTimeLabel = $('skyview-time-label');
+const skyviewReadout = $('skyview-readout'), skyviewReset = $('skyview-reset');
+const skyviewSelectionName = $('skyview-selection-name'), skyviewSelectionMeta = $('skyview-selection-meta');
+const skyviewOpenObject = $('skyview-open-object');
 const eclipseBtn = $('eclipsebtn'), eclipsePanel = $('eclipse-panel');
 const eclipseViewButtons = $('eclipse-view-buttons'), eclipseLocationButtons = $('eclipse-location-buttons');
 const eclipseSlider = $('eclipse-slider'), eclipsePlay = $('eclipse-play'), eclipseClose = $('eclipse-close');
@@ -3832,6 +4000,22 @@ let observingLocation = null;
 const skyViewState = { obj: null, location: null, startTime: null };
 let skyHitTargets = [];
 let skyDetailObject = null;
+const skyviewState = {
+  location: null,
+  startTime: null,
+  endTime: null,
+  date: null,
+  yaw: 0,
+  pitch: 28,
+  fov: 88,
+  items: [],
+  hitTargets: [],
+  selected: null,
+  dragging: false,
+  moved: false,
+  lastX: 0,
+  lastY: 0,
+};
 const cockpitProjectPos = new THREE.Vector3();
 const cockpitForward = new THREE.Vector3();
 const cockpitToObject = new THREE.Vector3();
@@ -3868,6 +4052,7 @@ const cockpitSky = {
   starEntries: [],
   starPositions: null,
   starPoints: null,
+  starFieldShipLy: null,
   solarEntries: [],
   messierEntries: [],
   earthEntry: null,
@@ -4171,6 +4356,25 @@ function makeCockpitEarthScene(earthObj) {
     earthMaterial.needsUpdate = true;
   });
 
+  // The Blue Marble map has very dark oceans and polar night can visually
+  // disappear into the black sky, making the lit continents look like a flat
+  // oval even though the geometry is spherical. This faint full-disc lift keeps
+  // the planet's circular limb readable without washing out the surface map.
+  const oceanLift = new THREE.Mesh(
+    new THREE.SphereGeometry(1.006, 96, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x175aa8,
+      transparent: true,
+      opacity: 0.2,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  oceanLift.renderOrder = 30.5;
+  oceanLift.userData.obj = earthObj;
+  group.add(oceanLift);
+
   const cloudsMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
@@ -4239,7 +4443,7 @@ function makeCockpitEarthScene(earthObj) {
   setCockpitGroupPickObject(group, earthObj);
   moonMesh.userData.obj = moonObj || earthObj;
   moonLabel.userData.obj = moonObj || earthObj;
-  return { group, earthMesh, clouds, atmosphere, moonGroup, moonMesh, moonLabel, moonObj };
+  return { group, earthMesh, oceanLift, clouds, atmosphere, moonGroup, moonMesh, moonLabel, moonObj };
 }
 
 function cockpitSeededRandom(seedText) {
@@ -4349,8 +4553,8 @@ function cockpitFlybyMaterial(color, {
     roughness,
     transparent: opacity < 1,
     opacity,
-    depthTest: false,
-    depthWrite: false,
+    depthTest: true,
+    depthWrite: opacity >= 1,
     side,
   });
   material.userData.baseOpacity = opacity;
@@ -4362,7 +4566,7 @@ function cockpitFlybyGlowMaterial(color, opacity = 0.86) {
     color,
     transparent: true,
     opacity,
-    depthTest: false,
+    depthTest: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
@@ -4405,6 +4609,43 @@ function addFlybySphere(group, radius, scale, position, material, segments = 24)
   return mesh;
 }
 
+function addFlybyHull(group, profile, position, rotation, material, segments = 36) {
+  const points = profile.map(([x, radius]) => new THREE.Vector2(radius, x));
+  const geometry = new THREE.LatheGeometry(points, segments);
+  geometry.rotateZ(-Math.PI / 2);
+  geometry.computeVertexNormals();
+  return addFlybyMesh(group, geometry, material, position, rotation);
+}
+
+function addFlybyPlate(group, outline, thickness, position, rotation, material, bevel = 0.035) {
+  const shape = new THREE.Shape();
+  outline.forEach(([x, z], index) => {
+    if (index === 0) shape.moveTo(x, z);
+    else shape.lineTo(x, z);
+  });
+  shape.closePath();
+  const bevelSize = Math.min(bevel, thickness * 0.28);
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: thickness,
+    steps: 1,
+    bevelEnabled: bevelSize > 0,
+    bevelSegments: 2,
+    bevelSize,
+    bevelThickness: bevelSize,
+    curveSegments: 1,
+  });
+  geometry.rotateX(Math.PI / 2);
+  geometry.translate(0, thickness / 2, 0);
+  geometry.computeVertexNormals();
+  return addFlybyMesh(group, geometry, material, position, rotation);
+}
+
+function addFlybyRadialPanel(group, radius, thickness, sides, position, rotation, material) {
+  const geometry = new THREE.CylinderGeometry(radius, radius, thickness, sides, 1, false);
+  geometry.rotateX(Math.PI / 2);
+  return addFlybyMesh(group, geometry, material, position, rotation);
+}
+
 function addFlybyEngine(group, position, glow, radius = 0.16) {
   addFlybySphere(group, radius, [1, 0.55, 0.55], position, glow, 18);
 }
@@ -4443,9 +4684,8 @@ function setFlybyUserData(group, obj) {
     if (!child.material) return;
     child.renderOrder = 36;
     child.material.transparent = true;
-    child.material.depthTest = false;
-    child.material.depthWrite = false;
     if (child.material.userData.baseOpacity == null) child.material.userData.baseOpacity = child.material.opacity ?? 1;
+    if (child.material.userData.baseDepthWrite == null) child.material.userData.baseDepthWrite = child.material.depthWrite;
   });
 }
 
@@ -4453,6 +4693,7 @@ function setCockpitFlybyOpacity(entry, opacity) {
   entry.model.traverse(child => {
     if (!child.material) return;
     child.material.opacity = (child.material.userData.baseOpacity ?? 1) * opacity;
+    child.material.depthWrite = !!child.material.userData.baseDepthWrite && opacity > 0.9;
   });
 }
 
@@ -4500,28 +4741,29 @@ function makeCockpitFlybyModel(type) {
   const glow = cockpitFlybyGlowMaterial(type.accent, 0.9);
 
   if (type.id === 'klingon') {
-    addFlybyCylinder(group, 0.24, 0.32, 2.6, [0, 0, 0], [0, 0, 0], hull, 24);
-    addFlybyCylinder(group, 0.02, 0.28, 0.78, [1.66, 0, 0], [0, 0, 0], trim, 24);
-    addFlybySphere(group, 0.24, [1.15, 0.52, 0.78], [0.58, 0.1, 0], glass, 20);
-    addFlybyBox(group, [2.35, 0.08, 0.72], [-0.36, -0.06, 0.68], [0, 0.28, -0.12], hull);
-    addFlybyBox(group, [2.35, 0.08, 0.72], [-0.36, -0.06, -0.68], [0, -0.28, 0.12], hull);
-    addFlybyBox(group, [0.8, 0.1, 0.18], [-1.18, -0.04, 0.92], [0, 0.18, -0.08], trim);
-    addFlybyBox(group, [0.8, 0.1, 0.18], [-1.18, -0.04, -0.92], [0, -0.18, 0.08], trim);
-    addFlybyEngine(group, [-1.54, 0, 0.34], glow, 0.16);
-    addFlybyEngine(group, [-1.54, 0, -0.34], glow, 0.16);
+    addFlybyHull(group, [[-1.5, 0.12], [-1.28, 0.28], [-0.35, 0.34], [0.62, 0.23], [1.36, 0.1], [1.72, 0]], [0, 0, 0], [0, 0, 0], hull);
+    addFlybyPlate(group, [[-1.48, 0], [-1.08, -1.2], [-0.12, -0.78], [0.52, -0.25], [0.74, 0], [0.52, 0.25], [-0.12, 0.78], [-1.08, 1.2]], 0.12, [-0.08, -0.08, 0], [0, 0, 0], hull, 0.05);
+    addFlybyPlate(group, [[-1.32, -0.18], [-0.98, -0.94], [-0.24, -0.6], [0.28, -0.22], [-0.18, -0.38], [-0.92, -0.76]], 0.045, [0, 0.08, 0], [0, 0, 0], trim, 0.012);
+    addFlybyPlate(group, [[-1.32, 0.18], [-0.98, 0.94], [-0.24, 0.6], [0.28, 0.22], [-0.18, 0.38], [-0.92, 0.76]], 0.045, [0, 0.08, 0], [0, 0, 0], trim, 0.012);
+    addFlybySphere(group, 0.25, [1.25, 0.5, 0.72], [0.66, 0.15, 0], glass, 24);
+    addFlybyEngine(group, [-1.36, 0, 0.3], glow, 0.14);
+    addFlybyEngine(group, [-1.36, 0, -0.3], glow, 0.14);
   } else if (type.id === 'romulan') {
-    addFlybySphere(group, 0.42, [1.25, 0.34, 0.72], [0.16, 0, 0], hull, 28);
-    addFlybyCylinder(group, 0.04, 0.22, 0.72, [1.2, 0, 0], [0, 0, 0], trim, 22);
-    addFlybyBox(group, [2.7, 0.07, 0.92], [-0.12, 0, 0.76], [0.02, 0.22, -0.04], hull);
-    addFlybyBox(group, [2.7, 0.07, 0.92], [-0.12, 0, -0.76], [-0.02, -0.22, 0.04], hull);
-    addFlybyBox(group, [1.4, 0.06, 0.24], [-0.38, 0.04, 1.16], [0, 0.08, 0], trim);
-    addFlybyBox(group, [1.4, 0.06, 0.24], [-0.38, 0.04, -1.16], [0, -0.08, 0], trim);
-    addFlybySphere(group, 0.17, [1.45, 0.4, 0.4], [-1.42, 0, 0.48], glow, 18);
-    addFlybySphere(group, 0.17, [1.45, 0.4, 0.4], [-1.42, 0, -0.48], glow, 18);
+    addFlybyPlate(group, [[-1.58, 0], [-1.18, -1.3], [-0.3, -1.58], [0.9, -1.02], [1.52, -0.32], [1.68, 0], [1.52, 0.32], [0.9, 1.02], [-0.3, 1.58], [-1.18, 1.3]], 0.15, [0, 0, 0], [0, 0, 0], hull, 0.055);
+    addFlybyPlate(group, [[-1.3, 0], [-0.96, -1.02], [-0.26, -1.24], [0.66, -0.8], [1.18, -0.28], [0.58, -0.5], [-0.12, -0.66], [-0.74, -0.5], [-0.98, 0]], 0.045, [0.02, 0.1, 0], [0, 0, 0], dark, 0.012);
+    addFlybyPlate(group, [[-1.3, 0], [-0.96, 1.02], [-0.26, 1.24], [0.66, 0.8], [1.18, 0.28], [0.58, 0.5], [-0.12, 0.66], [-0.74, 0.5], [-0.98, 0]], 0.045, [0.02, 0.1, 0], [0, 0, 0], dark, 0.012);
+    addFlybySphere(group, 0.44, [1.35, 0.36, 0.74], [0.16, 0.05, 0], hull, 32);
+    addFlybySphere(group, 0.21, [1.15, 0.5, 0.72], [0.54, 0.16, 0], glass, 24);
+    addFlybyCylinder(group, 0.03, 0.19, 0.72, [1.23, 0, 0], [0, 0, 0], trim, 24);
+    addFlybyEngine(group, [-1.18, 0, 0.78], glow, 0.13);
+    addFlybyEngine(group, [-1.18, 0, -0.78], glow, 0.13);
   } else if (type.id === 'borg') {
-    addFlybyBox(group, [1.55, 1.55, 1.55], [0, 0, 0], [0.12, 0.18, 0.08], hull);
-    addFlybyPanelSpecks(group, type, trim, 36, 0.72, 0.72, 0.8);
-    addFlybyPanelSpecks(group, type, dark, 24, 0.72, 0.72, -0.8);
+    addFlybyBox(group, [1.62, 1.62, 1.62], [0, 0, 0], [0.1, 0.16, 0.07], hull);
+    addFlybyBox(group, [1.68, 0.12, 1.68], [0, 0.54, 0], [0.1, 0.16, 0.07], dark);
+    addFlybyBox(group, [0.12, 1.68, 1.68], [0.54, 0, 0], [0.1, 0.16, 0.07], trim);
+    addFlybyBox(group, [1.68, 1.68, 0.12], [0, 0, 0.54], [0.1, 0.16, 0.07], dark);
+    addFlybyPanelSpecks(group, type, trim, 42, 0.76, 0.76, 0.84);
+    addFlybyPanelSpecks(group, type, dark, 30, 0.76, 0.76, -0.84);
     addFlybyBox(group, [1.62, 0.04, 1.62], [0, 0.82, 0], [0, 0, 0], cockpitFlybyMaterial('#111b13', {
       emissive: '#315f2d',
       emissiveIntensity: 0.28,
@@ -4532,65 +4774,80 @@ function makeCockpitFlybyModel(type) {
     addFlybyEngine(group, [-0.52, 0.84, -0.5], glow, 0.08);
     addFlybyEngine(group, [0.06, 0.84, -0.18], glow, 0.06);
   } else if (type.id === 'xwing') {
-    addFlybyCylinder(group, 0.15, 0.2, 2.65, [0.12, 0, 0], [0, 0, 0], hull, 24);
-    addFlybyCylinder(group, 0.0, 0.18, 0.68, [1.66, 0, 0], [0, 0, 0], glass, 24);
-    addFlybySphere(group, 0.18, [1.05, 0.58, 0.62], [0.74, 0.1, 0], glass, 18);
-    addFlybyBox(group, [1.95, 0.05, 0.32], [-0.44, 0.12, 0.48], [0.1, 0.16, 0.12], hull);
-    addFlybyBox(group, [1.95, 0.05, 0.32], [-0.44, -0.12, 0.48], [-0.1, 0.16, -0.12], hull);
-    addFlybyBox(group, [1.95, 0.05, 0.32], [-0.44, 0.12, -0.48], [-0.1, -0.16, 0.12], hull);
-    addFlybyBox(group, [1.95, 0.05, 0.32], [-0.44, -0.12, -0.48], [0.1, -0.16, -0.12], hull);
-    addFlybyBox(group, [0.42, 0.04, 0.07], [0.2, 0.16, 0.61], [0, 0, 0], cockpitFlybyMaterial(type.accent, { emissive: type.accent, emissiveIntensity: 0.18 }));
-    addFlybyBox(group, [0.42, 0.04, 0.07], [0.2, -0.16, -0.61], [0, 0, 0], cockpitFlybyMaterial(type.accent, { emissive: type.accent, emissiveIntensity: 0.18 }));
-    for (const y of [-0.14, 0.14]) for (const z of [-0.5, 0.5]) addFlybyEngine(group, [-1.12, y, z], glow, 0.08);
+    addFlybyHull(group, [[-1.34, 0.12], [-1.04, 0.2], [0.56, 0.2], [1.28, 0.11], [1.72, 0]], [0.08, 0, 0], [0, 0, 0], hull, 32);
+    addFlybySphere(group, 0.2, [1.05, 0.58, 0.7], [0.64, 0.13, 0], glass, 22);
+    for (const zSign of [-1, 1]) {
+      for (const ySign of [-1, 1]) {
+        addFlybyPlate(group, [[-1.28, zSign * 0.2], [0.48, zSign * 0.3], [-0.64, zSign * 1.02], [-1.42, zSign * 0.9]], 0.065, [0, ySign * 0.12, 0], [ySign * zSign * 0.18, 0, 0], hull, 0.018);
+        addFlybyCylinder(group, 0.035, 0.055, 1.22, [-0.04, ySign * 0.24, zSign * 1.0], [0, 0, 0], trim, 14);
+        addFlybyEngine(group, [-1.2, ySign * 0.2, zSign * 0.48], glow, 0.07);
+      }
+    }
+    addFlybyCylinder(group, 0.0, 0.15, 0.58, [1.68, 0, 0], [0, 0, 0], glass, 22);
   } else if (type.id === 'tie') {
-    addFlybySphere(group, 0.42, [0.98, 0.98, 0.98], [0, 0, 0], hull, 28);
-    addFlybySphere(group, 0.18, [0.9, 0.66, 0.9], [0.2, 0.04, 0], glass, 20);
-    addFlybyBox(group, [0.12, 0.08, 2.7], [0, 0, 0], [0, 0, 0], dark);
-    addFlybyBox(group, [0.1, 1.2, 0.08], [0, 0, 1.42], [0, 0, 0], trim);
-    addFlybyBox(group, [0.1, 1.2, 0.08], [0, 0, -1.42], [0, 0, 0], trim);
-    addFlybyBox(group, [0.08, 0.84, 1.1], [0, 0, 1.42], [0, 0, 0], cockpitFlybyMaterial('#1f2938', {
+    addFlybySphere(group, 0.46, [1, 1, 1], [0, 0, 0], hull, 32);
+    addFlybySphere(group, 0.2, [0.92, 0.68, 0.92], [0.23, 0.04, 0], glass, 24);
+    addFlybyBox(group, [0.12, 0.12, 2.35], [0, 0, 0], [0, 0, 0], trim);
+    const tiePanel = cockpitFlybyMaterial('#1f2938', {
       emissive: '#263c6c',
       emissiveIntensity: 0.12,
       side: THREE.DoubleSide,
-    }));
-    addFlybyBox(group, [0.08, 0.84, 1.1], [0, 0, -1.42], [0, 0, 0], cockpitFlybyMaterial('#1f2938', {
-      emissive: '#263c6c',
-      emissiveIntensity: 0.12,
-      side: THREE.DoubleSide,
-    }));
+    });
+    for (const z of [-1.3, 1.3]) {
+      addFlybyRadialPanel(group, 0.88, 0.1, 6, [0, 0, z], [0, 0, Math.PI / 6], tiePanel);
+      addFlybyRadialPanel(group, 0.64, 0.112, 6, [0, 0, z], [0, 0, Math.PI / 6], dark);
+      for (let spoke = 0; spoke < 3; spoke += 1) {
+        addFlybyBox(group, [0.045, 1.52, 0.13], [0, 0, z], [0, 0, spoke * Math.PI / 3], trim);
+      }
+    }
     addFlybyEngine(group, [-0.42, 0, 0], glow, 0.12);
   } else if (type.id === 'firefly') {
-    addFlybyCylinder(group, 0.24, 0.34, 2.7, [0.02, 0, 0], [0, 0, 0], hull, 24);
-    addFlybyBox(group, [1.05, 0.38, 0.52], [-0.44, -0.02, 0], [0, 0, 0], hull);
-    addFlybyCylinder(group, 0.05, 0.2, 0.64, [1.62, 0.02, 0], [0, 0, 0], trim, 18);
-    addFlybyBox(group, [1.0, 0.15, 0.24], [-0.68, -0.34, 0.58], [0, 0.12, 0.08], trim);
-    addFlybyBox(group, [1.0, 0.15, 0.24], [-0.68, -0.34, -0.58], [0, -0.12, -0.08], trim);
-    addFlybyCylinder(group, 0.22, 0.22, 0.58, [-1.24, -0.34, 0.68], [0, 0, 0], dark, 18);
-    addFlybyCylinder(group, 0.22, 0.22, 0.58, [-1.24, -0.34, -0.68], [0, 0, 0], dark, 18);
-    addFlybyEngine(group, [-1.58, -0.34, 0.68], glow, 0.2);
-    addFlybyEngine(group, [-1.58, -0.34, -0.68], glow, 0.2);
-    addFlybySphere(group, 0.17, [1.0, 0.62, 0.8], [0.78, 0.18, 0], glass, 18);
+    addFlybyHull(group, [[-1.46, 0.14], [-1.18, 0.32], [-0.38, 0.4], [0.54, 0.25], [1.32, 0.11], [1.72, 0]], [0, 0, 0], [0, 0, 0], hull, 34);
+    addFlybyBox(group, [0.9, 0.38, 0.56], [-0.5, -0.02, 0], [0, 0, 0], hull);
+    addFlybyPlate(group, [[-1.32, -0.2], [-0.62, -1.04], [0.18, -0.8], [0.52, -0.28], [-0.46, -0.46]], 0.12, [-0.08, -0.2, 0], [0, 0, 0], trim, 0.04);
+    addFlybyPlate(group, [[-1.32, 0.2], [-0.62, 1.04], [0.18, 0.8], [0.52, 0.28], [-0.46, 0.46]], 0.12, [-0.08, -0.2, 0], [0, 0, 0], trim, 0.04);
+    addFlybyHull(group, [[-1.64, 0.08], [-1.46, 0.23], [-0.88, 0.23], [-0.68, 0.08]], [0, -0.3, 0.78], [0, 0, 0], dark, 24);
+    addFlybyHull(group, [[-1.64, 0.08], [-1.46, 0.23], [-0.88, 0.23], [-0.68, 0.08]], [0, -0.3, -0.78], [0, 0, 0], dark, 24);
+    addFlybyEngine(group, [-1.62, -0.3, 0.78], glow, 0.18);
+    addFlybyEngine(group, [-1.62, -0.3, -0.78], glow, 0.18);
+    addFlybySphere(group, 0.18, [1.05, 0.64, 0.82], [0.76, 0.17, 0], glass, 22);
   } else {
-    addFlybySphere(group, 0.36, [1.05, 0.42, 0.6], [0.18, 0, 0], hull, 24);
-    addFlybyBox(group, [2.5, 0.06, 0.55], [-0.12, 0, 0.5], [0, 0.24, -0.04], hull);
-    addFlybyBox(group, [2.5, 0.06, 0.55], [-0.12, 0, -0.5], [0, -0.24, 0.04], hull);
-    addFlybyBox(group, [0.92, 0.07, 0.12], [0.16, 0.05, 0], [0, 0, 0], cockpitFlybyGlowMaterial(type.accent, 0.76));
-    addFlybyBox(group, [0.52, 0.08, 0.16], [-1.02, 0.02, 0.74], [0, 0.14, 0], trim);
-    addFlybyBox(group, [0.52, 0.08, 0.16], [-1.02, 0.02, -0.74], [0, -0.14, 0], trim);
-    addFlybyEngine(group, [-1.42, 0, 0.42], glow, 0.12);
-    addFlybyEngine(group, [-1.42, 0, -0.42], glow, 0.12);
+    addFlybyPlate(group, [[-1.52, 0], [-0.9, -0.7], [0.1, -1.18], [1.46, -0.7], [0.92, -0.18], [0.3, 0], [0.92, 0.18], [1.46, 0.7], [0.1, 1.18], [-0.9, 0.7]], 0.13, [0, 0, 0], [0, 0, 0], hull, 0.05);
+    addFlybyPlate(group, [[-0.98, 0], [-0.38, -0.34], [0.42, -0.58], [0.92, -0.34], [0.36, -0.08], [0.1, 0], [0.36, 0.08], [0.92, 0.34], [0.42, 0.58], [-0.38, 0.34]], 0.045, [0.2, 0.1, 0], [0, 0, 0], dark, 0.012);
+    addFlybySphere(group, 0.34, [1.06, 0.4, 0.62], [0.08, 0.08, 0], hull, 28);
+    addFlybyBox(group, [1.18, 0.055, 0.1], [0.24, 0.16, 0], [0, 0, 0], cockpitFlybyGlowMaterial(type.accent, 0.82));
+    addFlybyEngine(group, [-1.34, 0, 0.34], glow, 0.11);
+    addFlybyEngine(group, [-1.34, 0, -0.34], glow, 0.11);
   }
 
   addFlybyBox(group, [0.06, 0.06, 0.06], [1.9, 0, 0], [0, 0, 0], cockpitFlybyGlowMaterial(type.accent, 0.5));
-  if (type.id !== 'borg') {
-    addFlybyPanelSpecks(group, type, panel, 20, 1.28, 0.92, 0.16);
-    addFlybyPanelSpecks(group, type, dark, 10, 1.18, 0.82, -0.16);
-  }
+  if (type.id !== 'borg') addFlybyBox(group, [0.68, 0.025, 0.12], [-0.12, 0.23, 0], [0, 0, 0], panel);
   addFlybyHitbox(group);
   return group;
 }
 
+function disposeObject3DResources(model, preserveTextures = null) {
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+  model.traverse(child => {
+    if (child.geometry) geometries.add(child.geometry);
+    const childMaterials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const material of childMaterials) {
+      if (!material) continue;
+      materials.add(material);
+      for (const value of Object.values(material)) {
+        if (value?.isTexture && !preserveTextures?.has(value)) textures.add(value);
+      }
+    }
+  });
+  for (const texture of textures) texture.dispose();
+  for (const material of materials) material.dispose();
+  for (const geometry of geometries) geometry.dispose();
+}
+
 function resetCockpitFlybys() {
+  for (const entry of cockpitSky.flybyEntries) disposeObject3DResources(entry.model);
   if (cockpitSky.flybyGroup) cockpitSky.flybyGroup.clear();
   cockpitSky.flybyEntries = [];
 }
@@ -4637,7 +4894,8 @@ function spawnCockpitFlyby(now) {
     .addScaledVector(up, y + drift);
   const moveDir = end.clone().sub(start).normalize();
   const baseQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), moveDir);
-  const roll = (((cockpitState.flybySerial * 47) % 100) / 100 - 0.5) * 0.58;
+  const rollJitter = (((cockpitState.flybySerial * 47) % 100) / 100 - 0.5) * 0.18;
+  const roll = (side < 0 ? -1 : 1) * (type.bank || 0.36) + rollJitter;
 
   const entry = {
     obj,
@@ -4677,6 +4935,7 @@ function updateCockpitFlybys(now) {
     const t = (now - entry.startedAt) / entry.duration;
     if (t >= 1) {
       cockpitSky.flybyGroup.remove(entry.model);
+      disposeObject3DResources(entry.model);
       cockpitSky.flybyEntries.splice(i, 1);
       cockpitHudLast = 0;
       continue;
@@ -4820,16 +5079,38 @@ function updateCockpitSolarSprites() {
 }
 
 function updateCockpitStarField() {
+  if (cockpitSky.starFieldShipLy !== null &&
+      Math.abs(cockpitSky.starFieldShipLy - cockpitState.shipLy) < 1e-12) return;
   const attr = cockpitSky.starPoints.geometry.getAttribute('position');
   cockpitSky.starEntries.forEach((entry, i) => {
     const pos = cockpitPlaceActual(entry);
     attr.setXYZ(i, pos.x, pos.y, pos.z);
   });
   attr.needsUpdate = true;
+  cockpitSky.starFieldShipLy = cockpitState.shipLy;
 }
 
 function updateCockpitMessierContacts() {
   for (const entry of cockpitSky.messierEntries) cockpitPlaceActual(entry);
+}
+
+function cockpitEarthOrbitRadius() {
+  const viewportWidth = Math.max(1, renderer.domElement.clientWidth || window.innerWidth);
+  const viewportHeight = Math.max(1, renderer.domElement.clientHeight || window.innerHeight);
+  const diameterPx = Math.min(
+    viewportHeight * COCKPIT_EARTH_ORBIT_HEIGHT_FRACTION,
+    viewportWidth * COCKPIT_EARTH_ORBIT_WIDTH_FRACTION
+  );
+  const focalLengthPx = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+  const projectedRadiusPx = diameterPx / 2;
+  const centerDistance = Math.hypot(
+    COCKPIT_EARTH_ORBIT_DISTANCE,
+    COCKPIT_EARTH_ORBIT_UP_OFFSET,
+    10
+  );
+  const fittedRadius = centerDistance * projectedRadiusPx /
+    Math.hypot(focalLengthPx, projectedRadiusPx);
+  return Math.min(COCKPIT_EARTH_ORBIT_RADIUS, fittedRadius);
 }
 
 function updateCockpitEarthSprite() {
@@ -4845,9 +5126,9 @@ function updateCockpitEarthSprite() {
   let radius;
   if (cockpitState.orbitEarth) {
     entry.pos.copy(cockpitViewDir).multiplyScalar(COCKPIT_EARTH_ORBIT_DISTANCE)
-      .addScaledVector(cockpitViewUp, -44)
+      .addScaledVector(cockpitViewUp, COCKPIT_EARTH_ORBIT_UP_OFFSET)
       .addScaledVector(cockpitViewSide, Math.sin(cockpitState.earthOrbitPhase * 0.7) * 10);
-    radius = COCKPIT_EARTH_ORBIT_RADIUS;
+    radius = cockpitEarthOrbitRadius();
   } else {
     entry.pos.copy(cockpitActualVec).multiplyScalar(COCKPIT_SKY_RADIUS);
     const orbitRatio = Math.max(1, rangeLy / COCKPIT_EARTH_START_RANGE_LY);
@@ -4855,7 +5136,13 @@ function updateCockpitEarthSprite() {
   }
 
   entry.group.position.copy(entry.pos);
-  entry.group.scale.setScalar(radius);
+  // Keep every globe layer rigorously uniform. A stale non-uniform transform or
+  // camera aspect would otherwise turn the sphere into an ellipse on screen.
+  entry.group.scale.set(radius, radius, radius);
+  entry.earthMesh.scale.set(1, 1, 1);
+  entry.oceanLift.scale.set(1, 1, 1);
+  entry.clouds.scale.set(1, 1, 1);
+  entry.atmosphere.scale.set(1, 1, 1);
   entry.group.visible = true;
   const spin = earthSpinQuaternion(jdToDate(cockpitState.departureJD + cockpitState.elapsedYears * 365.25));
   entry.earthMesh.quaternion.copy(spin);
@@ -4869,12 +5156,14 @@ function updateCockpitEarthSprite() {
   const moonLen = Math.max(1e-9, Math.hypot(...moonGeo));
   const moonSceneDir = eclVecToScene(moonGeo.map(v => v / moonLen), 1).normalize();
   const sideSign = moonSceneDir.dot(cockpitViewSide) >= 0 ? 1 : -1;
-  const moonLocal = cockpitViewSide.clone().multiplyScalar(1.42 * sideSign)
-    .addScaledVector(cockpitViewUp, 0.9)
+  const narrowViewport = (renderer.domElement.clientWidth || window.innerWidth) < 600;
+  const moonLocal = cockpitViewSide.clone().multiplyScalar((narrowViewport ? 1.18 : 1.42) * sideSign)
+    .addScaledVector(cockpitViewUp, narrowViewport ? 0.78 : 0.38)
     .addScaledVector(cockpitViewDir, 0.14)
     .normalize()
-    .multiplyScalar(1.82);
+    .multiplyScalar(narrowViewport ? 1.24 : 1.82);
   entry.moonGroup.position.copy(moonLocal);
+  entry.moonGroup.scale.setScalar(narrowViewport ? 0.68 : 1);
   entry.moonGroup.visible = cockpitState.orbitEarth;
   moonEntry.visible = cockpitState.orbitEarth;
   moonEntry.pos.copy(entry.pos).addScaledVector(moonLocal, radius);
@@ -4956,7 +5245,7 @@ function cockpitCandidateContacts() {
     ...(cockpitSky.moonEntry?.visible ? [cockpitSky.moonEntry] : []),
     ...cockpitSky.flybyEntries,
     ...cockpitSky.solarEntries,
-    ...cockpitSky.starEntries,
+    ...cockpitSky.starEntries.slice(0, COCKPIT_STAR_LABEL_LIMIT),
     ...cockpitSky.messierEntries,
   ];
 }
@@ -5413,6 +5702,7 @@ async function toggleBoundaryLayer(input, label, status) {
 }
 
 function clearNowOverlay() {
+  disposeObject3DResources(nowGroup, new Set([nowGlowTexture]));
   nowGroup.clear();
   nowNote.textContent = '';
   nowNote.classList.remove('show');
@@ -5548,6 +5838,7 @@ function setObservingLocation(location) {
   setSkyLocationStatus(location.label);
   updateSkyOpenButton();
   setTonightStatus('');
+  tonightSkyviewBtn.disabled = false;
   if (tonightModal.classList.contains('open')) renderTonight();
 }
 
@@ -6079,6 +6370,393 @@ function closeSkyView() {
   showSkyObjectDetails(null);
 }
 
+function currentSkyviewDate() {
+  return new Date(skyviewState.startTime.getTime() + Number(skyviewTime.value) * 60000);
+}
+
+function skyviewDirection(azDeg, altDeg) {
+  const az = degToRad(azDeg);
+  const alt = degToRad(altDeg);
+  const cosAlt = Math.cos(alt);
+  return {
+    x: cosAlt * Math.sin(az),
+    y: Math.sin(alt),
+    z: cosAlt * Math.cos(az),
+  };
+}
+
+function skyviewFrame(width, height) {
+  const yaw = degToRad(skyviewState.yaw);
+  const pitch = degToRad(skyviewState.pitch);
+  const cosPitch = Math.cos(pitch);
+  const sinPitch = Math.sin(pitch);
+  return {
+    width,
+    height,
+    focal: height / (2 * Math.tan(degToRad(skyviewState.fov) / 2)),
+    forward: {
+      x: cosPitch * Math.sin(yaw),
+      y: sinPitch,
+      z: cosPitch * Math.cos(yaw),
+    },
+    right: { x: Math.cos(yaw), y: 0, z: -Math.sin(yaw) },
+    up: {
+      x: -sinPitch * Math.sin(yaw),
+      y: cosPitch,
+      z: -sinPitch * Math.cos(yaw),
+    },
+  };
+}
+
+function skyviewProject(direction, frame) {
+  const cx = direction.x * frame.right.x + direction.y * frame.right.y + direction.z * frame.right.z;
+  const cy = direction.x * frame.up.x + direction.y * frame.up.y + direction.z * frame.up.z;
+  const cz = direction.x * frame.forward.x + direction.y * frame.forward.y + direction.z * frame.forward.z;
+  if (cz <= 0.04) return null;
+  return {
+    x: frame.width / 2 + (cx / cz) * frame.focal,
+    y: frame.height / 2 - (cy / cz) * frame.focal,
+    depth: cz,
+  };
+}
+
+function skyviewObjectColor(obj) {
+  const d = obj.data;
+  if (d.kind || d.bstar || d.catalogStar || d.exoplanetHost) return d.color || '#dce8ff';
+  return CATS[d.cat]?.color || '#dce8ff';
+}
+
+function skyviewObjectKind(obj) {
+  const d = obj.data;
+  if (d.kind) return SOLAR_KINDS[d.kind]?.badge || 'Solar system';
+  if (d.bstar || d.catalogStar) return 'Star';
+  if (d.exoplanetHost) return 'Planet host';
+  return CATS[d.cat]?.badge || d.type || 'Object';
+}
+
+function skyviewItemStyle(obj, date) {
+  const d = obj.data;
+  const mag = d.kind ? apparentMag(d, julianDate(date)) : d.mag;
+  if (d.kind) {
+    const size = d.slug === 'sun' ? 8 : d.slug === 'moon' ? 6.5 :
+      THREE.MathUtils.clamp(4.6 - (Number.isFinite(mag) ? mag : 2) * 0.32, 2.2, 6.5);
+    return { layer: 3, size, alpha: 1, mag, labelPriority: 0, label: d.name };
+  }
+  if (d.bstar) {
+    return {
+      layer: 1,
+      size: THREE.MathUtils.clamp(4.4 - d.mag * 0.48, 1.4, 5.4),
+      alpha: 0.96,
+      mag,
+      labelPriority: d.mag <= 2.8 ? 1 : null,
+      label: d.name,
+    };
+  }
+  if (d.catalogStar) {
+    return {
+      layer: 0,
+      size: THREE.MathUtils.clamp(2.8 - d.mag * 0.3, 0.75, 2.8),
+      alpha: 0.76,
+      mag,
+      labelPriority: d.mag <= 1.2 ? 3 : null,
+      label: catalogStarName(d),
+    };
+  }
+  if (d.exoplanetHost) {
+    return {
+      layer: 1,
+      size: 2.3,
+      alpha: 0.82,
+      mag,
+      labelPriority: Number.isFinite(d.mag) && d.mag <= 2.8 ? 3 : null,
+      label: d.name,
+    };
+  }
+  return {
+    layer: 2,
+    size: THREE.MathUtils.clamp(3.2 + (9 - d.mag) * 0.24, 2.2, 6.2),
+    alpha: 0.88,
+    mag,
+    labelPriority: d.mag <= 7.2 ? 2 : null,
+    label: `M${d.m}`,
+  };
+}
+
+function buildSkyviewItems() {
+  const date = currentSkyviewDate();
+  skyviewState.date = date;
+  const sources = [
+    ...catalogBrightSkyObjects,
+    ...starObjects,
+    ...(exoplanetGroup.visible
+      ? exoplanetObjects.filter(obj => Number.isFinite(obj.data.mag) && obj.data.mag <= CATALOG_NAKED_EYE_MAG)
+      : []),
+    ...objects,
+    ...solarChartBodies,
+  ];
+  const seen = new Set();
+  const items = [];
+  for (const obj of sources) {
+    if (seen.has(obj)) continue;
+    seen.add(obj);
+    const horizontal = objectHorizontal(obj.data, date, skyviewState.location);
+    if (horizontal.alt <= 0) continue;
+    items.push({
+      obj,
+      horizontal,
+      direction: skyviewDirection(horizontal.az, horizontal.alt),
+      color: skyviewObjectColor(obj),
+      ...skyviewItemStyle(obj, date),
+    });
+  }
+  items.sort((a, b) => a.layer - b.layer || (b.mag ?? 99) - (a.mag ?? 99));
+  skyviewState.items = items;
+  if (skyviewState.selected) {
+    skyviewState.selected = items.find(item => item.obj === skyviewState.selected.obj) || null;
+  }
+}
+
+function drawSkyviewCurve(ctx, frame, directions, color, width = 1) {
+  ctx.beginPath();
+  let previous = null;
+  let drawing = false;
+  for (const direction of directions) {
+    const point = skyviewProject(direction, frame);
+    const inRange = point && point.x > -frame.width && point.x < frame.width * 2 &&
+      point.y > -frame.height && point.y < frame.height * 2;
+    const jump = previous && point && Math.hypot(point.x - previous.x, point.y - previous.y) > frame.width * 0.35;
+    if (!inRange || jump) {
+      drawing = false;
+      previous = point;
+      continue;
+    }
+    if (!drawing) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+    drawing = true;
+    previous = point;
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
+}
+
+function drawSkyviewDome(ctx, frame, date) {
+  const sunAlt = sunAltitude(date, skyviewState.location);
+  const daylight = THREE.MathUtils.clamp((sunAlt + 14) / 24, 0, 1);
+  const sky = ctx.createLinearGradient(0, 0, 0, frame.height);
+  sky.addColorStop(0, daylight ? `rgba(28, 67, 119, ${0.35 + daylight * 0.55})` : '#071126');
+  sky.addColorStop(0.65, daylight ? `rgba(56, 93, 143, ${0.28 + daylight * 0.48})` : '#030713');
+  sky.addColorStop(1, '#01030a');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, frame.width, frame.height);
+
+  const glow = ctx.createRadialGradient(frame.width / 2, frame.height * 0.25, 0, frame.width / 2, frame.height * 0.34, frame.height * 0.82);
+  glow.addColorStop(0, 'rgba(92, 133, 210, 0.12)');
+  glow.addColorStop(1, 'rgba(4, 8, 18, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, frame.width, frame.height);
+
+  const horizonY = frame.height / 2 + Math.tan(degToRad(skyviewState.pitch)) * frame.focal;
+  if (horizonY < frame.height) {
+    const groundTop = Math.max(0, horizonY);
+    const ground = ctx.createLinearGradient(0, groundTop, 0, frame.height);
+    ground.addColorStop(0, 'rgba(20, 29, 38, 0.74)');
+    ground.addColorStop(1, 'rgba(1, 3, 8, 0.98)');
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, groundTop, frame.width, frame.height - groundTop);
+  }
+
+  for (const alt of [0, 30, 60]) {
+    const directions = [];
+    for (let az = 0; az <= 360; az += 2) directions.push(skyviewDirection(az, alt));
+    drawSkyviewCurve(ctx, frame, directions,
+      alt === 0 ? 'rgba(210, 225, 255, 0.48)' : 'rgba(175, 202, 245, 0.15)',
+      alt === 0 ? 1.5 : 1);
+  }
+  for (let az = 0; az < 360; az += 45) {
+    const directions = [];
+    for (let alt = 0; alt <= 90; alt += 2) directions.push(skyviewDirection(az, alt));
+    drawSkyviewCurve(ctx, frame, directions,
+      az % 90 === 0 ? 'rgba(175, 202, 245, 0.16)' : 'rgba(175, 202, 245, 0.08)');
+  }
+
+  ctx.font = '600 12px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const [label, az] of [['N', 0], ['NE', 45], ['E', 90], ['SE', 135], ['S', 180], ['SW', 225], ['W', 270], ['NW', 315]]) {
+    const point = skyviewProject(skyviewDirection(az, 3), frame);
+    if (!point || point.x < 16 || point.x > frame.width - 16 || point.y < 16 || point.y > frame.height - 16) continue;
+    ctx.fillStyle = az % 90 === 0 ? 'rgba(235, 244, 255, 0.9)' : 'rgba(205, 220, 245, 0.58)';
+    ctx.fillText(label, point.x, point.y);
+  }
+}
+
+function updateSkyviewSelection() {
+  const item = skyviewState.selected;
+  if (!item) {
+    skyviewSelectionName.textContent = 'Select an object';
+    skyviewSelectionMeta.textContent = 'Drag to look around, then click any visible object.';
+    skyviewOpenObject.disabled = true;
+    return;
+  }
+  skyviewSelectionName.textContent = displayName(item.obj.data);
+  skyviewSelectionMeta.textContent = `${skyviewObjectKind(item.obj)} · ${Math.round(item.horizontal.alt)}° high · ` +
+    `${Math.round(item.horizontal.az)}° ${azLabel(item.horizontal.az)}`;
+  skyviewOpenObject.disabled = false;
+}
+
+function selectSkyviewItem(item) {
+  skyviewState.selected = item;
+  skyviewTooltip.style.display = 'none';
+  renderSkyview();
+}
+
+function renderSkyviewLabels(candidates, width, height) {
+  const chosen = [];
+  const maxLabels = width < 720 ? 12 : 24;
+  candidates.sort((a, b) => a.item.labelPriority - b.item.labelPriority || (a.item.mag ?? 99) - (b.item.mag ?? 99));
+  for (const candidate of candidates) {
+    if (candidate.point.y < 28 || candidate.point.y > height - 28) continue;
+    if (chosen.some(other => Math.hypot(candidate.point.x - other.point.x, candidate.point.y - other.point.y) < 76)) continue;
+    chosen.push(candidate);
+    if (chosen.length >= maxLabels) break;
+  }
+  const buttons = chosen.map(({ item, point }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'skyview-label';
+    if (point.x > width - 170) button.classList.add('left');
+    if (skyviewState.selected?.obj === item.obj) button.classList.add('active');
+    button.textContent = item.label;
+    button.style.left = `${point.x}px`;
+    button.style.top = `${point.y}px`;
+    button.style.setProperty('--object-color', item.color);
+    button.setAttribute('aria-label', `${displayName(item.obj.data)}, ${Math.round(item.horizontal.alt)} degrees high`);
+    button.addEventListener('click', () => selectSkyviewItem(item));
+    return button;
+  });
+  skyviewLabels.replaceChildren(...buttons);
+}
+
+function renderSkyview() {
+  if (!skyviewModal.classList.contains('open') || !skyviewState.location || !skyviewState.startTime) return;
+  const width = Math.max(320, skyviewCanvas.clientWidth || window.innerWidth - 24);
+  const height = Math.max(320, skyviewCanvas.clientHeight || window.innerHeight - 150);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (skyviewCanvas.width !== Math.round(width * dpr) || skyviewCanvas.height !== Math.round(height * dpr)) {
+    skyviewCanvas.width = Math.round(width * dpr);
+    skyviewCanvas.height = Math.round(height * dpr);
+  }
+  const ctx = skyviewCanvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  const date = currentSkyviewDate();
+  skyviewState.date = date;
+  const frame = skyviewFrame(width, height);
+  drawSkyviewDome(ctx, frame, date);
+
+  skyviewState.hitTargets = [];
+  const labelCandidates = [];
+  for (const item of skyviewState.items) {
+    const point = skyviewProject(item.direction, frame);
+    if (!point || point.x < -12 || point.x > width + 12 || point.y < -12 || point.y > height + 12) continue;
+    const apparentSize = item.size * THREE.MathUtils.clamp(0.72 + point.depth * 0.45, 0.72, 1.12);
+    if (apparentSize > 2.8) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, apparentSize * 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = item.color;
+      ctx.globalAlpha = item.alpha * 0.11;
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, apparentSize, 0, Math.PI * 2);
+    ctx.fillStyle = item.color;
+    ctx.globalAlpha = item.alpha;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    if (skyviewState.selected?.obj === item.obj) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, apparentSize + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffdf87';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    skyviewState.hitTargets.push({ item, x: point.x, y: point.y, hitRadius: Math.max(8, apparentSize + 5) });
+    if (item.labelPriority !== null) labelCandidates.push({ item, point });
+  }
+  renderSkyviewLabels(labelCandidates, width, height);
+  updateSkyviewSelection();
+  skyviewTimeLabel.textContent = formatSkyTime(date, skyviewState.location);
+  skyviewSubtitle.textContent = `${skyviewState.location.label} · ${skyviewState.items.length.toLocaleString()} objects above the horizon`;
+  skyviewReadout.textContent = `Facing ${azLabel(skyviewState.yaw)} · ${Math.round(skyviewState.pitch)}° up · ` +
+    `${Math.round(skyviewState.fov)}° field · drag to look · scroll to zoom`;
+}
+
+function skyviewTargetAt(clientX, clientY) {
+  const rect = skyviewCanvas.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  let best = null;
+  for (const target of skyviewState.hitTargets) {
+    const dist = Math.hypot(x - target.x, y - target.y);
+    if (dist <= target.hitRadius && (!best || dist < best.dist)) best = { ...target, dist };
+  }
+  return best;
+}
+
+function updateSkyviewTooltip(target, clientX, clientY) {
+  skyviewCanvas.classList.toggle('hovering', !!target);
+  if (!target) {
+    skyviewTooltip.style.display = 'none';
+    return;
+  }
+  const rect = skyviewCanvas.getBoundingClientRect();
+  skyviewTooltip.textContent = `${displayName(target.item.obj.data)} · ${Math.round(target.item.horizontal.alt)}° high`;
+  skyviewTooltip.style.display = 'block';
+  skyviewTooltip.style.left = `${THREE.MathUtils.clamp(clientX - rect.left + 12, 8, rect.width - 190)}px`;
+  skyviewTooltip.style.top = `${THREE.MathUtils.clamp(clientY - rect.top + 12, 8, rect.height - 34)}px`;
+}
+
+function openSkyviewFromTonight() {
+  if (!observingLocation) {
+    setTonightStatus('Set a viewing location first.', { error: true });
+    return;
+  }
+  const now = new Date();
+  const win = darknessWindow(observingLocation);
+  const start = win?.start || now;
+  const end = win?.end || new Date(now.getTime() + 12 * 3600000);
+  const defaultDate = now >= start && now <= end
+    ? now
+    : new Date(start.getTime() + (end.getTime() - start.getTime()) / 2);
+  skyviewState.location = observingLocation;
+  skyviewState.startTime = start;
+  skyviewState.endTime = end;
+  skyviewState.yaw = 0;
+  skyviewState.pitch = 28;
+  skyviewState.fov = 88;
+  skyviewState.selected = null;
+  skyviewTime.min = 0;
+  skyviewTime.max = Math.max(10, Math.round((end - start) / 60000));
+  skyviewTime.step = 10;
+  skyviewTime.value = THREE.MathUtils.clamp(Math.round((defaultDate - start) / 60000), 0, Number(skyviewTime.max));
+  skyviewTitle.textContent = 'Skyview from location';
+  closeTonight();
+  skyviewModal.classList.add('open');
+  skyviewModal.setAttribute('aria-hidden', 'false');
+  buildSkyviewItems();
+  requestAnimationFrame(renderSkyview);
+}
+
+function closeSkyview({ returnToTonight = false } = {}) {
+  skyviewModal.classList.remove('open');
+  skyviewModal.setAttribute('aria-hidden', 'true');
+  skyviewCanvas.classList.remove('dragging', 'hovering');
+  skyviewTooltip.style.display = 'none';
+  skyviewLabels.replaceChildren();
+  if (returnToTonight) openTonight();
+}
+
 skyCityBtn.addEventListener('click', findCityLocation);
 skyCityInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') findCityLocation();
@@ -6098,8 +6776,78 @@ skyCanvas.addEventListener('click', e => {
   if (target) showSkyObjectDetails(target.obj, target.horizontal);
   else showSkyObjectDetails(null);
 });
+tonightSkyviewBtn.addEventListener('click', openSkyviewFromTonight);
+skyviewClose.addEventListener('click', () => closeSkyview({ returnToTonight: true }));
+skyviewTime.addEventListener('input', () => {
+  buildSkyviewItems();
+  renderSkyview();
+});
+skyviewReset.addEventListener('click', () => {
+  skyviewState.yaw = 0;
+  skyviewState.pitch = 28;
+  skyviewState.fov = 88;
+  renderSkyview();
+});
+skyviewOpenObject.addEventListener('click', () => {
+  const item = skyviewState.selected;
+  if (!item) return;
+  closeSkyview();
+  select(item.obj);
+});
+skyviewCanvas.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  skyviewState.dragging = true;
+  skyviewState.moved = false;
+  skyviewState.lastX = e.clientX;
+  skyviewState.lastY = e.clientY;
+  skyviewCanvas.classList.add('dragging');
+  skyviewTooltip.style.display = 'none';
+  if (typeof skyviewCanvas.setPointerCapture === 'function') skyviewCanvas.setPointerCapture(e.pointerId);
+});
+skyviewCanvas.addEventListener('pointermove', e => {
+  if (skyviewState.dragging) {
+    const dx = e.clientX - skyviewState.lastX;
+    const dy = e.clientY - skyviewState.lastY;
+    if (Math.hypot(dx, dy) > 1) skyviewState.moved = true;
+    skyviewState.yaw = normDeg(skyviewState.yaw - dx * 0.18);
+    skyviewState.pitch = THREE.MathUtils.clamp(skyviewState.pitch - dy * 0.15, -18, 86);
+    skyviewState.lastX = e.clientX;
+    skyviewState.lastY = e.clientY;
+    renderSkyview();
+    return;
+  }
+  updateSkyviewTooltip(skyviewTargetAt(e.clientX, e.clientY), e.clientX, e.clientY);
+});
+skyviewCanvas.addEventListener('pointerup', e => {
+  if (!skyviewState.dragging) return;
+  skyviewState.dragging = false;
+  skyviewCanvas.classList.remove('dragging');
+  if (typeof skyviewCanvas.hasPointerCapture === 'function' && skyviewCanvas.hasPointerCapture(e.pointerId)) {
+    skyviewCanvas.releasePointerCapture(e.pointerId);
+  }
+  if (!skyviewState.moved) {
+    const target = skyviewTargetAt(e.clientX, e.clientY);
+    if (target) selectSkyviewItem(target.item);
+  }
+});
+skyviewCanvas.addEventListener('pointercancel', e => {
+  skyviewState.dragging = false;
+  skyviewCanvas.classList.remove('dragging');
+  if (typeof skyviewCanvas.hasPointerCapture === 'function' && skyviewCanvas.hasPointerCapture(e.pointerId)) {
+    skyviewCanvas.releasePointerCapture(e.pointerId);
+  }
+});
+skyviewCanvas.addEventListener('pointerleave', () => {
+  if (!skyviewState.dragging) updateSkyviewTooltip(null, 0, 0);
+});
+skyviewCanvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  skyviewState.fov = THREE.MathUtils.clamp(skyviewState.fov + e.deltaY * 0.025, 42, 115);
+  renderSkyview();
+}, { passive: false });
 window.addEventListener('resize', () => {
   if (skyModal.classList.contains('open')) renderSkyChart();
+  if (skyviewModal.classList.contains('open')) renderSkyview();
 });
 
 /* ---------- legend ---------- */
@@ -6415,7 +7163,8 @@ function deselect() {
 $('closepanel').addEventListener('click', deselect);
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (cockpitMode && cockpitDestinationMenuOpen()) setCockpitDestinationMenu(false);
+  if (skyviewModal.classList.contains('open')) closeSkyview({ returnToTonight: true });
+  else if (cockpitMode && cockpitDestinationMenuOpen()) setCockpitDestinationMenu(false);
   else if (cockpitMode) exitCockpitMode();
   else if (skyModal.classList.contains('open')) closeSkyView();
   else if (tonightModal.classList.contains('open')) closeTonight();
@@ -6989,6 +7738,7 @@ function renderTonight() {
 }
 
 function openTonight() {
+  tonightSkyviewBtn.disabled = !observingLocation;
   tonightModal.classList.add('open');
   controls.autoRotate = false;
   renderTonight();
@@ -7059,6 +7809,7 @@ let lastFrameMs = null;
 
 function animate(now) {
   requestAnimationFrame(animate);
+  syncRendererViewport();
 
   const dtSec = lastFrameMs === null ? 0 : Math.min((now - lastFrameMs) / 1000, 0.25);
   lastFrameMs = now;
@@ -7114,9 +7865,7 @@ function animate(now) {
 requestAnimationFrame(animate);
 
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  syncRendererViewport(true);
 });
 
 // debug/automation handle
@@ -7128,6 +7877,7 @@ window.__ATLAS = {
   galacticOutlineGroup, warpEnterpriseGroup, WARP_TARGETS, setWarpEnterpriseTarget,
   cockpitState, cockpitSky, enterCockpitMode, exitCockpitMode,
   setSolarJD, getSolarJD: () => solarJD, setTdPlaying, openTonight,
+  skyviewState, openSkyviewFromTonight, closeSkyview, renderSkyview,
   apparentMag, absoluteMag, setIntrinsicSizing,
   eclipseState, eclipseSamples, openEclipseMode, closeEclipseMode, setEclipseView,
   setEclipseLocation, setEclipseJD, frameEclipseView,
